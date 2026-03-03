@@ -1,0 +1,74 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Build & Deploy to Lambda
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      # ── Testes antes de qualquer deploy ───────────────────────────────────────
+      - name: Test
+        run: go test -race ./...
+
+      # ── Build & Zip ───────────────────────────────────────────────────────────
+      - name: Build & zip API
+        run: make zip-api
+
+      - name: Build & zip Telegram bot
+        run: make zip-telegram
+
+      # ── AWS ───────────────────────────────────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # ── Migrations ANTES do deploy (schema deve ser retrocompatível) ──────────
+      - name: Install Tern
+        run: go install github.com/jackc/tern/v2@latest
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: make migrate-up
+
+      # ── Deploy Lambdas ────────────────────────────────────────────────────────
+      - name: Deploy API Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ vars.LAMBDA_API_NAME }} \
+            --zip-file fileb://lambda-api.zip
+
+      - name: Deploy Telegram Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ vars.LAMBDA_TELEGRAM_NAME }} \
+            --zip-file fileb://lambda-telegram.zip
+
+      # ── Aguarda propagação e valida ───────────────────────────────────────────
+      - name: Wait for API Lambda update
+        run: |
+          aws lambda wait function-updated \
+            --function-name ${{ vars.LAMBDA_API_NAME }}
+
+      - name: Wait for Telegram Lambda update
+        run: |
+          aws lambda wait function-updated \
+            --function-name ${{ vars.LAMBDA_TELEGRAM_NAME }}
