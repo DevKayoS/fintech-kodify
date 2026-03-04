@@ -52,12 +52,20 @@ jobs:
           LAMBDA_NAME: ${{ vars.LAMBDA_API_NAME }}
           LAMBDA_ROLE_ARN: ${{ vars.LAMBDA_API_ROLE_ARN }}
           AWS_REGION: ${{ vars.AWS_REGION }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           if aws lambda get-function --function-name "$LAMBDA_NAME" --region "$AWS_REGION" > /dev/null 2>&1; then
             echo "→ Atualizando Lambda API..."
             aws lambda update-function-code \
               --function-name "$LAMBDA_NAME" \
               --zip-file fileb://lambda-api.zip \
+              --region "$AWS_REGION"
+            aws lambda wait function-updated \
+              --function-name "$LAMBDA_NAME" \
+              --region "$AWS_REGION"
+            aws lambda update-function-configuration \
+              --function-name "$LAMBDA_NAME" \
+              --environment "Variables={DATABASE_URL=$DATABASE_URL}" \
               --region "$AWS_REGION"
           else
             echo "→ Criando Lambda API..."
@@ -67,6 +75,7 @@ jobs:
               --role "$LAMBDA_ROLE_ARN" \
               --handler bootstrap \
               --zip-file fileb://lambda-api.zip \
+              --environment "Variables={DATABASE_URL=$DATABASE_URL}" \
               --region "$AWS_REGION"
           fi
 
@@ -93,12 +102,6 @@ jobs:
               --region "$AWS_REGION"
           fi
 
-      - name: Wait for API Lambda update
-        run: |
-          aws lambda wait function-updated \
-            --function-name ${{ vars.LAMBDA_API_NAME }} \
-            --region ${{ vars.AWS_REGION }}
-
       - name: Wait for Telegram Lambda update
         run: |
           aws lambda wait function-updated \
@@ -113,14 +116,20 @@ jobs:
           API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
           AWS_REGION: ${{ vars.AWS_REGION }}
         run: |
+          # Remove permissão antiga (ignora erro se não existir)
+          aws lambda remove-permission \
+            --function-name "$LAMBDA_NAME" \
+            --statement-id apigw-invoke \
+            --region "$AWS_REGION" \
+          2>/dev/null || true
+          # Adiciona permissão com o ID atual da API Gateway
           aws lambda add-permission \
             --function-name "$LAMBDA_NAME" \
             --statement-id apigw-invoke \
             --action lambda:InvokeFunction \
             --principal apigateway.amazonaws.com \
             --source-arn "arn:aws:execute-api:$AWS_REGION:$AWS_ACCOUNT_ID:$API_GATEWAY_ID/*/*" \
-            --region "$AWS_REGION" \
-          || echo "→ Permissão já existe, continuando."
+            --region "$AWS_REGION"
 
       # ── Deployment no API Gateway (ativa as mudanças no stage) ────────────────
       - name: Deploy API Gateway stage
