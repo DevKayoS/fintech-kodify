@@ -1,0 +1,103 @@
+name: Setup API Gateway
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    name: Recreate API Gateway as api-kodify
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Delete old API Gateway
+        run: |
+          echo "→ Deletando API Gateway jf1shm9leh..."
+          aws apigateway delete-rest-api --rest-api-id jf1shm9leh --region ${{ vars.AWS_REGION }}
+          echo "✓ Deletado."
+
+      - name: Create new API Gateway api-kodify
+        id: create_api
+        run: |
+          API_ID=$(aws apigateway create-rest-api \
+            --name api-kodify \
+            --region ${{ vars.AWS_REGION }} \
+            --query 'id' --output text)
+          echo "✓ Criado: $API_ID"
+          echo "api_id=$API_ID" >> $GITHUB_OUTPUT
+
+      - name: Setup resources and integrations
+        env:
+          API_ID: ${{ steps.create_api.outputs.api_id }}
+          LAMBDA_ARN: arn:aws:lambda:${{ vars.AWS_REGION }}:${{ vars.AWS_ACCOUNT_ID }}:function:${{ vars.LAMBDA_API_NAME }}
+        run: |
+          ROOT_ID=$(aws apigateway get-resources \
+            --rest-api-id $API_ID \
+            --region ${{ vars.AWS_REGION }} \
+            --query 'items[0].id' --output text)
+
+          PROXY_ID=$(aws apigateway create-resource \
+            --rest-api-id $API_ID \
+            --parent-id $ROOT_ID \
+            --path-part '{proxy+}' \
+            --region ${{ vars.AWS_REGION }} \
+            --query 'id' --output text)
+
+          for RESOURCE_ID in $ROOT_ID $PROXY_ID; do
+            aws apigateway put-method \
+              --rest-api-id $API_ID \
+              --resource-id $RESOURCE_ID \
+              --http-method ANY \
+              --authorization-type NONE \
+              --region ${{ vars.AWS_REGION }}
+
+            aws apigateway put-integration \
+              --rest-api-id $API_ID \
+              --resource-id $RESOURCE_ID \
+              --http-method ANY \
+              --type AWS_PROXY \
+              --integration-http-method POST \
+              --uri "arn:aws:apigateway:${{ vars.AWS_REGION }}:lambda:path/2015-03-31/functions/$LAMBDA_ARN/invocations" \
+              --region ${{ vars.AWS_REGION }}
+          done
+
+          echo "✓ Resources e integrations configurados."
+
+      - name: Grant Lambda invoke permission
+        env:
+          API_ID: ${{ steps.create_api.outputs.api_id }}
+        run: |
+          aws lambda add-permission \
+            --function-name ${{ vars.LAMBDA_API_NAME }} \
+            --statement-id apigw-invoke \
+            --action lambda:InvokeFunction \
+            --principal apigateway.amazonaws.com \
+            --source-arn "arn:aws:execute-api:${{ vars.AWS_REGION }}:${{ vars.AWS_ACCOUNT_ID }}:$API_ID/*/*" \
+            --region ${{ vars.AWS_REGION }} \
+          || echo "→ Permissão já existe, continuando."
+
+      - name: Deploy to stage dev
+        env:
+          API_ID: ${{ steps.create_api.outputs.api_id }}
+        run: |
+          aws apigateway create-deployment \
+            --rest-api-id $API_ID \
+            --stage-name ${{ vars.API_GATEWAY_STAGE }} \
+            --region ${{ vars.AWS_REGION }}
+          echo "✓ Deploy no stage ${{ vars.API_GATEWAY_STAGE }} concluído."
+
+      - name: Print new API Gateway ID
+        env:
+          API_ID: ${{ steps.create_api.outputs.api_id }}
+        run: |
+          echo "========================================"
+          echo "  Novo API_GATEWAY_ID: $API_ID"
+          echo "  Atualize vars.API_GATEWAY_ID no GitHub"
+          echo "========================================"
