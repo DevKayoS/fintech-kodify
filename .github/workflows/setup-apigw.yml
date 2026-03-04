@@ -17,20 +17,31 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Delete old API Gateway
+      - name: Delete old API Gateway (se existir)
         run: |
-          echo "→ Deletando API Gateway jf1shm9leh..."
-          aws apigateway delete-rest-api --rest-api-id jf1shm9leh --region ${{ vars.AWS_REGION }}
-          echo "✓ Deletado."
+          echo "→ Deletando API Gateway jf1shm9leh (se existir)..."
+          aws apigateway delete-rest-api --rest-api-id jf1shm9leh --region ${{ vars.AWS_REGION }} \
+            || echo "→ API não encontrada ou já deletada, continuando."
 
-      - name: Create new API Gateway api-kodify
+      - name: Create (or reuse) API Gateway api-kodify
         id: create_api
         run: |
-          API_ID=$(aws apigateway create-rest-api \
-            --name api-kodify \
+          EXISTING=$(aws apigateway get-rest-apis \
             --region ${{ vars.AWS_REGION }} \
-            --query 'id' --output text)
-          echo "✓ Criado: $API_ID"
+            --query "items[?name=='api-kodify'].id | [0]" \
+            --output text)
+
+          if [ "$EXISTING" != "None" ] && [ -n "$EXISTING" ]; then
+            echo "→ API api-kodify já existe: $EXISTING — reutilizando."
+            API_ID=$EXISTING
+          else
+            API_ID=$(aws apigateway create-rest-api \
+              --name api-kodify \
+              --region ${{ vars.AWS_REGION }} \
+              --query 'id' --output text)
+            echo "✓ Criado: $API_ID"
+          fi
+
           echo "api_id=$API_ID" >> $GITHUB_OUTPUT
 
       - name: Setup resources and integrations
