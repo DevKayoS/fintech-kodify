@@ -21,18 +21,15 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      # ── Testes antes de qualquer deploy ───────────────────────────────────────
       - name: Test
         run: go test -race ./...
 
-      # ── Build & Zip ───────────────────────────────────────────────────────────
       - name: Build & zip API
         run: make zip-api
 
       - name: Build & zip Telegram bot
         run: make zip-telegram
 
-      # ── AWS ───────────────────────────────────────────────────────────────────
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -49,26 +46,99 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: make migrate-up
 
-      # ── Deploy Lambdas ────────────────────────────────────────────────────────
+      # ── Deploy Lambdas (cria se não existir, atualiza se existir) ─────────────
       - name: Deploy API Lambda
+        env:
+          LAMBDA_NAME: ${{ vars.LAMBDA_API_NAME }}
+          LAMBDA_ROLE_ARN: ${{ vars.LAMBDA_API_ROLE_ARN }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
         run: |
-          aws lambda update-function-code \
-            --function-name ${{ vars.LAMBDA_API_NAME }} \
-            --zip-file fileb://lambda-api.zip
+          if aws lambda get-function --function-name "$LAMBDA_NAME" --region "$AWS_REGION" > /dev/null 2>&1; then
+            echo "→ Atualizando Lambda API..."
+            aws lambda update-function-code \
+              --function-name "$LAMBDA_NAME" \
+              --zip-file fileb://lambda-api.zip \
+              --region "$AWS_REGION"
+          else
+            echo "→ Criando Lambda API..."
+            aws lambda create-function \
+              --function-name "$LAMBDA_NAME" \
+              --runtime provided.al2023 \
+              --role "$LAMBDA_ROLE_ARN" \
+              --handler bootstrap \
+              --zip-file fileb://lambda-api.zip \
+              --region "$AWS_REGION"
+          fi
 
       - name: Deploy Telegram Lambda
+        env:
+          LAMBDA_NAME: ${{ vars.LAMBDA_TELEGRAM_NAME }}
+          LAMBDA_ROLE_ARN: ${{ vars.LAMBDA_TELEGRAM_ROLE_ARN }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
         run: |
-          aws lambda update-function-code \
-            --function-name ${{ vars.LAMBDA_TELEGRAM_NAME }} \
-            --zip-file fileb://lambda-telegram.zip
+          if aws lambda get-function --function-name "$LAMBDA_NAME" --region "$AWS_REGION" > /dev/null 2>&1; then
+            echo "→ Atualizando Lambda Telegram..."
+            aws lambda update-function-code \
+              --function-name "$LAMBDA_NAME" \
+              --zip-file fileb://lambda-telegram.zip \
+              --region "$AWS_REGION"
+          else
+            echo "→ Criando Lambda Telegram..."
+            aws lambda create-function \
+              --function-name "$LAMBDA_NAME" \
+              --runtime provided.al2023 \
+              --role "$LAMBDA_ROLE_ARN" \
+              --handler bootstrap \
+              --zip-file fileb://lambda-telegram.zip \
+              --region "$AWS_REGION"
+          fi
 
-      # ── Aguarda propagação e valida ───────────────────────────────────────────
       - name: Wait for API Lambda update
         run: |
           aws lambda wait function-updated \
-            --function-name ${{ vars.LAMBDA_API_NAME }}
+            --function-name ${{ vars.LAMBDA_API_NAME }} \
+            --region ${{ vars.AWS_REGION }}
 
       - name: Wait for Telegram Lambda update
         run: |
           aws lambda wait function-updated \
-            --function-name ${{ vars.LAMBDA_TELEGRAM_NAME }}
+            --function-name ${{ vars.LAMBDA_TELEGRAM_NAME }} \
+            --region ${{ vars.AWS_REGION }}
+
+      # ── Permissão: API Gateway pode invocar a Lambda ───────────────────────────
+      - name: Grant API Gateway permission to invoke Lambda
+        env:
+          LAMBDA_NAME: ${{ vars.LAMBDA_API_NAME }}
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          aws lambda add-permission \
+            --function-name "$LAMBDA_NAME" \
+            --statement-id apigw-invoke \
+            --action lambda:InvokeFunction \
+            --principal apigateway.amazonaws.com \
+            --source-arn "arn:aws:execute-api:$AWS_REGION:$AWS_ACCOUNT_ID:$API_GATEWAY_ID/*/*" \
+            --region "$AWS_REGION" \
+          || echo "→ Permissão já existe, continuando."
+
+      # ── Deployment no API Gateway (ativa as mudanças no stage) ────────────────
+      - name: Deploy API Gateway stage
+        env:
+          API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
+          API_GATEWAY_STAGE: ${{ vars.API_GATEWAY_STAGE }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          aws apigateway create-deployment \
+            --rest-api-id "$API_GATEWAY_ID" \
+            --stage-name "$API_GATEWAY_STAGE" \
+            --region "$AWS_REGION"
+          echo "→ Deployment criado no stage $API_GATEWAY_STAGE"
+
+      # ── Health check ──────────────────────────────────────────────────────────
+      - name: Health check
+        run: |
+          sleep 15
+          curl --fail --silent --show-error https://api.kodify.com.br/api/v1/health \
+            && echo "✓ API respondendo em https://api.kodify.com.br" \
+            || (echo "✗ Health check falhou — verifique os logs da Lambda" && exit 1)
