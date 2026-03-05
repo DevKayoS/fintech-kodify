@@ -1,0 +1,17 @@
+# Binários e zips de deploy
+bootstrap-api
+bootstrap-telegram
+bootstrap
+lambda-api.zip
+lambda-telegram.zip
+
+# Env
+.env
+
+# Terraform
+infra/.terraform/
+infra/terraform.tfstate
+infra/terraform.tfstate.backup
+infra/crash.log
+# lock file DEVE ser commitado
+!infra/.terraform.lock.hcl
