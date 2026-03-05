@@ -147,6 +147,7 @@ data "aws_iam_policy_document" "github_infra" {
       "s3:PutObject",
       "s3:DeleteObject",
       "s3:ListBucket",
+      "s3:GetBucketVersioning",
     ]
     resources = [
       "arn:aws:s3:::kodify-terraform-state",
