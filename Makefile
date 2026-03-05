@@ -64,11 +64,15 @@ build-telegram:
 	@echo "Build concluído: $(TELEGRAM_BINARY)"
 
 zip-api: build-api
-	zip -j $(API_ZIP) $(API_BINARY)
+	cp $(API_BINARY) bootstrap
+	zip -j $(API_ZIP) bootstrap
+	rm -f bootstrap
 	@echo "Zip criado: $(API_ZIP)"
 
 zip-telegram: build-telegram
-	zip -j $(TELEGRAM_ZIP) $(TELEGRAM_BINARY)
+	cp $(TELEGRAM_BINARY) bootstrap
+	zip -j $(TELEGRAM_ZIP) bootstrap
+	rm -f bootstrap
 	@echo "Zip criado: $(TELEGRAM_ZIP)"
 
 clean:

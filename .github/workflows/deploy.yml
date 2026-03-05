@@ -67,6 +67,9 @@ jobs:
               --function-name "$LAMBDA_NAME" \
               --environment "Variables={DATABASE_URL=$DATABASE_URL}" \
               --region "$AWS_REGION"
+            aws lambda wait function-updated \
+              --function-name "$LAMBDA_NAME" \
+              --region "$AWS_REGION"
           else
             echo "→ Criando Lambda API..."
             aws lambda create-function \
@@ -84,12 +87,20 @@ jobs:
           LAMBDA_NAME: ${{ vars.LAMBDA_TELEGRAM_NAME }}
           LAMBDA_ROLE_ARN: ${{ vars.LAMBDA_TELEGRAM_ROLE_ARN }}
           AWS_REGION: ${{ vars.AWS_REGION }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           if aws lambda get-function --function-name "$LAMBDA_NAME" --region "$AWS_REGION" > /dev/null 2>&1; then
             echo "→ Atualizando Lambda Telegram..."
             aws lambda update-function-code \
               --function-name "$LAMBDA_NAME" \
               --zip-file fileb://lambda-telegram.zip \
+              --region "$AWS_REGION"
+            aws lambda wait function-updated \
+              --function-name "$LAMBDA_NAME" \
+              --region "$AWS_REGION"
+            aws lambda update-function-configuration \
+              --function-name "$LAMBDA_NAME" \
+              --environment "Variables={DATABASE_URL=$DATABASE_URL}" \
               --region "$AWS_REGION"
           else
             echo "→ Criando Lambda Telegram..."
@@ -99,6 +110,7 @@ jobs:
               --role "$LAMBDA_ROLE_ARN" \
               --handler bootstrap \
               --zip-file fileb://lambda-telegram.zip \
+              --environment "Variables={DATABASE_URL=$DATABASE_URL}" \
               --region "$AWS_REGION"
           fi
 
