@@ -62,6 +62,22 @@ jobs:
           TF_VAR_aws_region: ${{ vars.AWS_REGION }}
         run: terraform apply -auto-approve
 
+      - name: Deploy Lambda code (API)
+        run: |
+          aws lambda update-function-code \
+            --function-name fintech-kodify-api \
+            --zip-file fileb://lambda-api.zip \
+            --region ${{ vars.AWS_REGION }} \
+            --no-cli-pager
+
+      - name: Deploy Lambda code (Telegram)
+        run: |
+          aws lambda update-function-code \
+            --function-name fintech-kodify-telegram \
+            --zip-file fileb://lambda-telegram.zip \
+            --region ${{ vars.AWS_REGION }} \
+            --no-cli-pager
+
       - name: Health check
         run: |
           sleep 10
