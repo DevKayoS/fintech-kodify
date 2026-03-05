@@ -30,11 +30,14 @@ data "aws_iam_policy_document" "github_actions_assume" {
       values   = ["sts.amazonaws.com"]
     }
 
-    # Restringe ao repo e branch main
+    # Restringe ao repo (branch main ou environment production)
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${local.github_repo}:ref:refs/heads/main"]
+      values = [
+        "repo:${local.github_repo}:ref:refs/heads/main",
+        "repo:${local.github_repo}:environment:production",
+      ]
     }
   }
 }
