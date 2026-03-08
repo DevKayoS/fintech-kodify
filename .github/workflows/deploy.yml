@@ -11,7 +11,7 @@ jobs:
     environment: production
 
     permissions:
-      id-token: write   # necessário para OIDC
+      id-token: write # necessário para OIDC
       contents: read
 
     steps:
@@ -81,6 +81,6 @@ jobs:
       - name: Health check
         run: |
           sleep 10
-          curl --fail --silent --show-error https://api.kodify.com.br/api/v1/health \
+          curl --fail --silent --show-error https://api.kodify.com.br/api/v1/status \
             && echo "✓ API respondendo em https://api.kodify.com.br" \
             || (echo "✗ Health check falhou — verifique os logs da Lambda" && exit 1)

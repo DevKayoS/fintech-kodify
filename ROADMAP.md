@@ -3,6 +3,7 @@
 ## Visão Geral
 
 API serverless de controle financeiro pessoal, deployada como AWS Lambda, com dois pontos de entrada:
+
 - **API REST** via API Gateway (uso direto ou integrações futuras)
 - **Bot Telegram** via webhook Lambda (interface conversacional)
 
@@ -12,18 +13,18 @@ Usuários registram gastos e investimentos através de comandos simples no Teleg
 
 ## Stack
 
-| Camada | Tecnologia |
-|--------|-----------|
-| Linguagem | Go 1.25+ |
-| HTTP Framework | Gin |
-| Lambda Adapter | aws-lambda-go-api-proxy |
+| Camada         | Tecnologia                            |
+| -------------- | ------------------------------------- |
+| Linguagem      | Go 1.25+                              |
+| HTTP Framework | Gin                                   |
+| Lambda Adapter | aws-lambda-go-api-proxy               |
 | Banco de Dados | PostgreSQL (RDS ou Aurora Serverless) |
-| Query Layer | SQLC + pgx/v5 |
-| Migrations | Tern |
-| Autenticação | JWT (HMAC-SHA256) |
-| Deploy | AWS Lambda + API Gateway |
-| Bot | Telegram Bot API (webhook) |
-| Secrets | AWS SSM Parameter Store |
+| Query Layer    | SQLC + pgx/v5                         |
+| Migrations     | Tern                                  |
+| Autenticação   | JWT (HMAC-SHA256)                     |
+| Deploy         | AWS Lambda + API Gateway              |
+| Bot            | Telegram Bot API (webhook)            |
+| Secrets        | AWS SSM Parameter Store               |
 
 > Base estrutural espelhada do repositório `go-lambda` com os mesmos padrões de erros, middleware, DI e SQLC.
 
@@ -32,18 +33,23 @@ Usuários registram gastos e investimentos através de comandos simples no Teleg
 ## Entidades do Domínio
 
 ### Users
+
 Usuários do sistema. Cada usuário tem um `telegram_chat_id` opcional para vincular a conta ao bot.
 
 ### Expenses (Gastos)
+
 Registro de saídas financeiras. Possui categoria, descrição e valor.
 
 ### Investments (Investimentos)
+
 Registro de aportes financeiros por tipo (CDB, Fundos de Investimento/Cotas, Ações, Tesouro Direto, Cripto, etc).
 
 ### Categories (Categorias de Gasto)
+
 Tabela auxiliar para classificar gastos (Alimentação, Transporte, Saúde, Lazer, etc). Futuramente customizável por usuário.
 
 ### Investment Types (Tipos de Investimento)
+
 Tabela auxiliar com os tipos de investimento disponíveis (CDB, Cotas/FI, Ações, Tesouro Direto, Cripto, Poupança, etc).
 
 ---
@@ -88,11 +94,13 @@ Tabela auxiliar com os tipos de investimento disponíveis (CDB, Cotas/FI, Açõe
 Dois Lambdas independentes:
 
 ### Lambda 1 — API REST
+
 - Trigger: API Gateway HTTP
 - Responsável por: autenticação, CRUD de usuários, registro e consulta de gastos/investimentos
 - Padrão: mesmo do `go-lambda` (Gin + ginadapter)
 
 ### Lambda 2 — Telegram Webhook
+
 - Trigger: API Gateway POST `/webhook/telegram`
 - Responsável por: receber updates do Telegram, parsear comandos, chamar a lógica de negócio e responder
 - Reutiliza os mesmos services do Lambda 1 (shared library)
@@ -184,6 +192,7 @@ fintech-kodify/
 ## Schema do Banco de Dados
 
 ### Migration 001 — users
+
 ```sql
 CREATE TABLE users (
     id           BIGSERIAL PRIMARY KEY,
@@ -197,9 +206,11 @@ CREATE TABLE users (
 ```
 
 ### Migration 002 — roles e permissions
+
 > Igual ao go-lambda (admin, user, moderator)
 
 ### Migration 003 — investment_types
+
 ```sql
 CREATE TABLE investment_types (
     id          SERIAL PRIMARY KEY,
@@ -219,6 +230,7 @@ INSERT INTO investment_types (slug, name) VALUES
 ```
 
 ### Migration 004 — expense_categories
+
 ```sql
 CREATE TABLE expense_categories (
     id          SERIAL PRIMARY KEY,
@@ -239,6 +251,7 @@ INSERT INTO expense_categories (slug, name) VALUES
 ```
 
 ### Migration 005 — expenses
+
 ```sql
 CREATE TABLE expenses (
     id          BIGSERIAL PRIMARY KEY,
@@ -255,6 +268,7 @@ CREATE INDEX idx_expenses_occurred_at ON expenses(occurred_at);
 ```
 
 ### Migration 006 — investments
+
 ```sql
 CREATE TABLE investments (
     id                  BIGSERIAL PRIMARY KEY,
@@ -278,54 +292,55 @@ CREATE INDEX idx_investments_invested_at ON investments(invested_at);
 
 ### Públicos (sem auth)
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/v1/health` | Healthcheck |
-| POST | `/api/v1/auth` | Gerar token JWT |
-| POST | `/api/v1/users` | Criar usuário |
-| POST | `/api/v1/webhook/telegram` | Webhook do bot Telegram |
+| Método | Rota                       | Descrição               |
+| ------ | -------------------------- | ----------------------- |
+| GET    | `/api/v1/status`           | Healthcheck             |
+| POST   | `/api/v1/auth`             | Gerar token JWT         |
+| POST   | `/api/v1/users`            | Criar usuário           |
+| POST   | `/api/v1/webhook/telegram` | Webhook do bot Telegram |
 
 ### Protegidos (Bearer JWT)
 
 **Gastos**
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| POST | `/api/v1/expenses` | Registrar gasto |
-| GET | `/api/v1/expenses` | Listar gastos (filtros: mês, categoria) |
-| GET | `/api/v1/expenses/:id` | Detalhe de um gasto |
-| DELETE | `/api/v1/expenses/:id` | Remover gasto |
+| Método | Rota                   | Descrição                               |
+| ------ | ---------------------- | --------------------------------------- |
+| POST   | `/api/v1/expenses`     | Registrar gasto                         |
+| GET    | `/api/v1/expenses`     | Listar gastos (filtros: mês, categoria) |
+| GET    | `/api/v1/expenses/:id` | Detalhe de um gasto                     |
+| DELETE | `/api/v1/expenses/:id` | Remover gasto                           |
 
 **Investimentos**
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| POST | `/api/v1/investments` | Registrar investimento |
-| GET | `/api/v1/investments` | Listar investimentos (filtros: mês, tipo) |
-| GET | `/api/v1/investments/:id` | Detalhe de um investimento |
-| DELETE | `/api/v1/investments/:id` | Remover investimento |
+| Método | Rota                      | Descrição                                 |
+| ------ | ------------------------- | ----------------------------------------- |
+| POST   | `/api/v1/investments`     | Registrar investimento                    |
+| GET    | `/api/v1/investments`     | Listar investimentos (filtros: mês, tipo) |
+| GET    | `/api/v1/investments/:id` | Detalhe de um investimento                |
+| DELETE | `/api/v1/investments/:id` | Remover investimento                      |
 
 **Resumo**
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/v1/summary` | Resumo do período (total gastos + investimentos, breakdown por categoria/tipo) |
-| GET | `/api/v1/summary?month=2026-02` | Resumo de mês específico |
+| Método | Rota                            | Descrição                                                                      |
+| ------ | ------------------------------- | ------------------------------------------------------------------------------ |
+| GET    | `/api/v1/summary`               | Resumo do período (total gastos + investimentos, breakdown por categoria/tipo) |
+| GET    | `/api/v1/summary?month=2026-02` | Resumo de mês específico                                                       |
 
 **Auxiliares**
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/v1/expense-categories` | Listar categorias de gasto |
-| GET | `/api/v1/investment-types` | Listar tipos de investimento |
-| GET | `/api/v1/users/me` | Perfil do usuário autenticado |
-| POST | `/api/v1/users/link-telegram` | Vincular telegram_chat_id via token gerado |
+| Método | Rota                          | Descrição                                  |
+| ------ | ----------------------------- | ------------------------------------------ |
+| GET    | `/api/v1/expense-categories`  | Listar categorias de gasto                 |
+| GET    | `/api/v1/investment-types`    | Listar tipos de investimento               |
+| GET    | `/api/v1/users/me`            | Perfil do usuário autenticado              |
+| POST   | `/api/v1/users/link-telegram` | Vincular telegram_chat_id via token gerado |
 
 ---
 
 ## Fluxo do Bot Telegram
 
 ### Registro de conta (onboarding)
+
 1. Usuário cria conta via API REST (ou admin cria para ele)
 2. API gera um token temporário de vínculo
 3. Usuário envia `/start <token>` no bot
@@ -333,6 +348,7 @@ CREATE INDEX idx_investments_invested_at ON investments(invested_at);
 5. A partir daí, todas as mensagens do chat_id são associadas ao usuário
 
 ### Fluxo de comando
+
 ```
 Telegram → POST /webhook/telegram → Lambda Telegram
 → parser.go identifica comando e argumentos
@@ -342,6 +358,7 @@ Telegram → POST /webhook/telegram → Lambda Telegram
 ```
 
 ### Tratamento de erros no bot
+
 - Comando não reconhecido → mensagem de ajuda
 - Valor inválido → mensagem explicativa
 - Tipo/categoria não encontrado → lista as opções disponíveis
@@ -352,6 +369,7 @@ Telegram → POST /webhook/telegram → Lambda Telegram
 ## Fases de Desenvolvimento
 
 ### Fase 1 — Fundação
+
 - [ ] Configurar `go.mod` com todas as dependências
 - [ ] Copiar e adaptar camada de erros (`internal/errors/`)
 - [ ] Copiar e adaptar middleware (`internal/middleware/`)
@@ -365,6 +383,7 @@ Telegram → POST /webhook/telegram → Lambda Telegram
 - [ ] Makefile com build, zip, deploy, migrate, sqlc-generate
 
 ### Fase 2 — Core Financeiro
+
 - [ ] Migrations 003-006 (investment_types, expense_categories, expenses, investments)
 - [ ] Seeds para tipos e categorias
 - [ ] Queries SQLC para expenses e investments
@@ -375,6 +394,7 @@ Telegram → POST /webhook/telegram → Lambda Telegram
 - [ ] Endpoints auxiliares (categorias, tipos)
 
 ### Fase 3 — Bot Telegram
+
 - [ ] Definir structs de Update do Telegram em `internal/models/telegram.go`
 - [ ] Implementar `internal/bot/parser.go` para parsear comandos
 - [ ] Implementar `internal/bot/responder.go` para enviar mensagens via Telegram API
@@ -386,6 +406,7 @@ Telegram → POST /webhook/telegram → Lambda Telegram
 - [ ] Configurar webhook no Telegram
 
 ### Fase 4 — Qualidade e Infra
+
 - [ ] Testes de integração básicos
 - [ ] Logging estruturado (slog) em todas as camadas
 - [ ] Configuração de CORS no API Gateway
@@ -397,13 +418,13 @@ Telegram → POST /webhook/telegram → Lambda Telegram
 
 ## Variáveis de Ambiente
 
-| Variável | Descrição | Obrigatória |
-|----------|-----------|-------------|
-| `DATABASE_URL` | Connection string PostgreSQL | Sim |
-| `JWT_SECRET_KEY` | Chave secreta para assinar tokens | Sim |
-| `TELEGRAM_BOT_TOKEN` | Token do bot (BotFather) | Sim (Lambda Telegram) |
-| `TELEGRAM_WEBHOOK_SECRET` | Header secret para validar chamadas do Telegram | Recomendado |
-| `APP_ENV` | `production` ou `development` | Não |
+| Variável                  | Descrição                                       | Obrigatória           |
+| ------------------------- | ----------------------------------------------- | --------------------- |
+| `DATABASE_URL`            | Connection string PostgreSQL                    | Sim                   |
+| `JWT_SECRET_KEY`          | Chave secreta para assinar tokens               | Sim                   |
+| `TELEGRAM_BOT_TOKEN`      | Token do bot (BotFather)                        | Sim (Lambda Telegram) |
+| `TELEGRAM_WEBHOOK_SECRET` | Header secret para validar chamadas do Telegram | Recomendado           |
+| `APP_ENV`                 | `production` ou `development`                   | Não                   |
 
 ---
 

@@ -158,7 +158,7 @@ deploy-api:
 		--stage-name $(API_GATEWAY_STAGE) \
 		--region $(AWS_REGION) > /dev/null
 	@echo "Deploy concluído!"
-	@echo "→ https://api.kodify.com.br/api/v1/health"
+	@echo "→ https://api.kodify.com.br/api/v1/status"
 
 deploy: deploy-lambda grant-apigw deploy-api
 
