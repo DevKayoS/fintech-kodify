@@ -6,7 +6,7 @@ import (
 )
 
 func SetupHealthRoutes(rg *gin.RouterGroup, hc *controllers.HealthController) {
-	health := rg.Group("/health")
+	health := rg.Group("/status")
 	{
 		health.GET("", hc.Check)
 	}
