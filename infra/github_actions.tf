@@ -65,6 +65,7 @@ data "aws_iam_policy_document" "github_lambda" {
       "lambda:AddPermission",
       "lambda:RemovePermission",
       "lambda:GetPolicy",
+      "lambda:GetFunctionCodeSigningConfig",
       "lambda:ListTags",
       "lambda:TagResource",
       "lambda:UntagResource",
@@ -94,9 +95,15 @@ data "aws_iam_policy_document" "github_lambda" {
       "iam:GetOpenIDConnectProvider",
       "iam:UpdateOpenIDConnectProviderThumbprint",
       "iam:TagOpenIDConnectProvider",
+      "iam:GetPolicy",
+      "iam:GetPolicyVersion",
+      "iam:CreatePolicy",
+      "iam:DeletePolicy",
+      "iam:ListPolicyVersions",
     ]
     resources = [
       "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project_name}-*",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/${var.project_name}-*",
       "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com",
     ]
   }
