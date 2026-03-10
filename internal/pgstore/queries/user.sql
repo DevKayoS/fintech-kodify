@@ -43,3 +43,8 @@ WHERE u.email = $1;
 
 -- name: GetRoleByName :one
 SELECT * FROM roles WHERE name = $1;
+
+-- name: ClearUserTelegramChatID :exec
+UPDATE users
+SET telegram_chat_id = NULL, updated_at = NOW()
+WHERE id = $1;

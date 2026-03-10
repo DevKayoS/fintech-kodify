@@ -57,3 +57,16 @@ SELECT * FROM investment_types WHERE slug = $1;
 
 -- name: ListInvestmentTypes :many
 SELECT * FROM investment_types ORDER BY name;
+
+-- name: GetInvestmentSummaryByPeriod :many
+SELECT
+    it.slug AS type_slug,
+    it.name AS type_name,
+    SUM(i.amount) AS total
+FROM investments i
+JOIN investment_types it ON i.investment_type_id = it.id
+WHERE i.user_id = $1
+  AND i.invested_at >= $2
+  AND i.invested_at < $3
+GROUP BY it.id, it.slug, it.name
+ORDER BY total DESC;

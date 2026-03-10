@@ -57,3 +57,16 @@ SELECT * FROM expense_categories WHERE slug = $1;
 
 -- name: ListExpenseCategories :many
 SELECT * FROM expense_categories ORDER BY name;
+
+-- name: GetExpenseSummaryByPeriod :many
+SELECT
+    ec.slug AS category_slug,
+    ec.name AS category_name,
+    SUM(e.amount) AS total
+FROM expenses e
+JOIN expense_categories ec ON e.category_id = ec.id
+WHERE e.user_id = $1
+  AND e.occurred_at >= $2
+  AND e.occurred_at < $3
+GROUP BY ec.id, ec.slug, ec.name
+ORDER BY total DESC;
