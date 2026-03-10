@@ -332,6 +332,35 @@ internal/routes/feature_routes.go
 internal/api/api.go        → registrar controller + rotas
 ```
 
+### Padrão de injeção de dependência nos Services
+
+Todo service deve definir uma interface local para o repositório (facilita testes) e receber `*pgxpool.Pool` no construtor. Seguir exatamente este padrão — referência: `internal/services/health_services.go`:
+
+```go
+// 1. Interface local — declara apenas os métodos que o service usa
+type FeatureRepository interface {
+    MetodoDoBanco(ctx context.Context, ...) (pgstore.XxxRow, error)
+}
+
+// 2. Struct do service — campo privado do tipo da interface
+type FeatureService struct {
+    repository FeatureRepository
+}
+
+// 3. Construtor — recebe *pgxpool.Pool e injeta pgstore.New(pool)
+func NewFeatureService(pool *pgxpool.Pool) *FeatureService {
+    return &FeatureService{
+        repository: pgstore.New(pool),
+    }
+}
+
+// 4. Métodos — chamam s.repository.<Query>(ctx, ...)
+func (s *FeatureService) FazAlgo(ctx context.Context) (Result, error) {
+    row, err := s.repository.MetodoDoBanco(ctx, ...)
+    // ...
+}
+```
+
 ---
 
 ## Dependências Go

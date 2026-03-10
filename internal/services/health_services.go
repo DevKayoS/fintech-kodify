@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"log/slog"
 	"os"
 
 	"github.com/DevKayoS/fintech-kodify/internal/pgstore"
@@ -38,7 +39,7 @@ type AppStatus struct {
 func (s *HealthService) GetStatus(ctx context.Context) AppStatus {
 	env := os.Getenv("APP_ENV")
 	if env == "" {
-		env = "development"
+		env = "production"
 	}
 
 	status := AppStatus{
@@ -49,6 +50,7 @@ func (s *HealthService) GetStatus(ctx context.Context) AppStatus {
 
 	row, err := s.repository.GetDBStatus(ctx)
 	if err != nil {
+		slog.Error("[GetStatus] algo deu errado ao tentar consultar o banco de dados", "error", err)
 		return status
 	}
 
