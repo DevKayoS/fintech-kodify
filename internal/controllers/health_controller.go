@@ -3,18 +3,19 @@ package controllers
 import (
 	"net/http"
 
+	"github.com/DevKayoS/fintech-kodify/internal/services"
 	"github.com/gin-gonic/gin"
 )
 
-type HealthController struct{}
+type HealthController struct {
+	service *services.HealthService
+}
 
-func NewHealthController() *HealthController {
-	return &HealthController{}
+func NewHealthController(service *services.HealthService) *HealthController {
+	return &HealthController{service: service}
 }
 
 func (h *HealthController) Check(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, gin.H{
-		"status":  true,
-		"message": "API is running",
-	})
+	status := h.service.GetStatus(ctx.Request.Context())
+	ctx.JSON(http.StatusOK, status)
 }

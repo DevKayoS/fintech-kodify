@@ -63,6 +63,20 @@ type RolePermission struct {
 	PermissionID int64 `json:"permission_id"`
 }
 
+type SchemaVersion struct {
+	VersionID int64              `json:"version_id"`
+	Tstamp    pgtype.Timestamptz `json:"tstamp"`
+}
+
+type TelegramLinkToken struct {
+	ID        int64              `json:"id"`
+	UserID    int64              `json:"user_id"`
+	Token     string             `json:"token"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	UsedAt    pgtype.Timestamptz `json:"used_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type User struct {
 	ID             int64              `json:"id"`
 	Name           string             `json:"name"`

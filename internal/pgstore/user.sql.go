@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearUserTelegramChatID = `-- name: ClearUserTelegramChatID :exec
+UPDATE users
+SET telegram_chat_id = NULL, updated_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) ClearUserTelegramChatID(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, clearUserTelegramChatID, id)
+	return err
+}
+
 const getRoleByName = `-- name: GetRoleByName :one
 SELECT id, name, description, created_at FROM roles WHERE name = $1
 `

@@ -72,6 +72,52 @@ func (q *Queries) GetInvestmentByID(ctx context.Context, arg GetInvestmentByIDPa
 	return i, err
 }
 
+const getInvestmentSummaryByPeriod = `-- name: GetInvestmentSummaryByPeriod :many
+SELECT
+    it.slug AS type_slug,
+    it.name AS type_name,
+    SUM(i.amount) AS total
+FROM investments i
+JOIN investment_types it ON i.investment_type_id = it.id
+WHERE i.user_id = $1
+  AND i.invested_at >= $2
+  AND i.invested_at < $3
+GROUP BY it.id, it.slug, it.name
+ORDER BY total DESC
+`
+
+type GetInvestmentSummaryByPeriodParams struct {
+	UserID       int64              `json:"user_id"`
+	InvestedAt   pgtype.Timestamptz `json:"invested_at"`
+	InvestedAt_2 pgtype.Timestamptz `json:"invested_at_2"`
+}
+
+type GetInvestmentSummaryByPeriodRow struct {
+	TypeSlug string `json:"type_slug"`
+	TypeName string `json:"type_name"`
+	Total    int64  `json:"total"`
+}
+
+func (q *Queries) GetInvestmentSummaryByPeriod(ctx context.Context, arg GetInvestmentSummaryByPeriodParams) ([]GetInvestmentSummaryByPeriodRow, error) {
+	rows, err := q.db.Query(ctx, getInvestmentSummaryByPeriod, arg.UserID, arg.InvestedAt, arg.InvestedAt_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetInvestmentSummaryByPeriodRow
+	for rows.Next() {
+		var i GetInvestmentSummaryByPeriodRow
+		if err := rows.Scan(&i.TypeSlug, &i.TypeName, &i.Total); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getInvestmentTypeBySlug = `-- name: GetInvestmentTypeBySlug :one
 SELECT id, slug, name, description, created_at FROM investment_types WHERE slug = $1
 `

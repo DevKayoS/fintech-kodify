@@ -89,6 +89,52 @@ func (q *Queries) GetExpenseCategoryBySlug(ctx context.Context, slug string) (Ex
 	return i, err
 }
 
+const getExpenseSummaryByPeriod = `-- name: GetExpenseSummaryByPeriod :many
+SELECT
+    ec.slug AS category_slug,
+    ec.name AS category_name,
+    SUM(e.amount) AS total
+FROM expenses e
+JOIN expense_categories ec ON e.category_id = ec.id
+WHERE e.user_id = $1
+  AND e.occurred_at >= $2
+  AND e.occurred_at < $3
+GROUP BY ec.id, ec.slug, ec.name
+ORDER BY total DESC
+`
+
+type GetExpenseSummaryByPeriodParams struct {
+	UserID       int64              `json:"user_id"`
+	OccurredAt   pgtype.Timestamptz `json:"occurred_at"`
+	OccurredAt_2 pgtype.Timestamptz `json:"occurred_at_2"`
+}
+
+type GetExpenseSummaryByPeriodRow struct {
+	CategorySlug string `json:"category_slug"`
+	CategoryName string `json:"category_name"`
+	Total        int64  `json:"total"`
+}
+
+func (q *Queries) GetExpenseSummaryByPeriod(ctx context.Context, arg GetExpenseSummaryByPeriodParams) ([]GetExpenseSummaryByPeriodRow, error) {
+	rows, err := q.db.Query(ctx, getExpenseSummaryByPeriod, arg.UserID, arg.OccurredAt, arg.OccurredAt_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetExpenseSummaryByPeriodRow
+	for rows.Next() {
+		var i GetExpenseSummaryByPeriodRow
+		if err := rows.Scan(&i.CategorySlug, &i.CategoryName, &i.Total); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertExpense = `-- name: InsertExpense :one
 INSERT INTO expenses (user_id, category_id, amount, description, occurred_at)
 VALUES ($1, $2, $3, $4, $5)
