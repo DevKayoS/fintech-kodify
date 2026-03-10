@@ -56,7 +56,7 @@ func HandleUpdate(ctx context.Context, req events.APIGatewayProxyRequest) (event
 	case "/tipos_investimento":
 		// TODO: listar tipos de investimento
 	case "/ajuda":
-		// TODO: enviar mensagem de ajuda
+		sendMessage(chatID, helpMessage())
 	default:
 		slog.Info("telegram webhook: unknown command", "command", command)
 	}
