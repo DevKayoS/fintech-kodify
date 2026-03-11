@@ -1,4 +1,4 @@
-package bot
+package telegram
 
 import (
 	"bytes"
@@ -7,8 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-
-	"github.com/DevKayoS/fintech-kodify/internal/models"
 )
 
 // sendMessage envia uma mensagem de texto para um chat do Telegram.
@@ -19,7 +17,7 @@ func sendMessage(chatID int64, text string) {
 		return
 	}
 
-	payload := models.TelegramSendMessage{
+	payload := TelegramSendMessage{
 		ChatID:    chatID,
 		Text:      text,
 		ParseMode: "Markdown",

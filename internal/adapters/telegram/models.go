@@ -1,4 +1,4 @@
-package models
+package telegram
 
 // TelegramUpdate representa um update recebido do Telegram via webhook.
 type TelegramUpdate struct {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/DevKayoS/fintech-kodify/internal/api"
-	"github.com/DevKayoS/fintech-kodify/internal/pgstore/database"
+	"github.com/DevKayoS/fintech-kodify/internal/adapters/rest"
+	"github.com/DevKayoS/fintech-kodify/internal/infrastructure/pgstore/database"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	ginadapter "github.com/awslabs/aws-lambda-go-api-proxy/gin"
@@ -24,7 +24,7 @@ func init() {
 }
 
 func main() {
-	r := api.SetupAPI()
+	r := rest.SetupAPI()
 
 	ginLambda = ginadapter.New(r)
 	lambda.Start(Handler)

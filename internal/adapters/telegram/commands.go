@@ -1,4 +1,4 @@
-package bot
+package telegram
 
 func helpMessage() string {
 	return `*Kodify Bot — Comandos disponíveis*

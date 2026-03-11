@@ -1,9 +1,9 @@
-package api
+package rest
 
 import (
-	"github.com/DevKayoS/fintech-kodify/internal/controllers"
+	"github.com/DevKayoS/fintech-kodify/internal/adapters/rest/controllers"
+	"github.com/DevKayoS/fintech-kodify/internal/adapters/rest/routes"
 	"github.com/DevKayoS/fintech-kodify/internal/middleware"
-	"github.com/DevKayoS/fintech-kodify/internal/routes"
 	"github.com/gin-gonic/gin"
 )
 

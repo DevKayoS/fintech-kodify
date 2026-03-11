@@ -8,8 +8,8 @@ API_BINARY    = bootstrap-api
 TELEGRAM_BINARY = bootstrap-telegram
 API_ZIP       = lambda-api.zip
 TELEGRAM_ZIP  = lambda-telegram.zip
-MIGRATIONS_DIR = ./internal/pgstore/migrations
-SQLC_CONFIG    = ./internal/pgstore/sqlc.yaml
+MIGRATIONS_DIR = ./internal/infrastructure/pgstore/migrations
+SQLC_CONFIG    = ./internal/infrastructure/pgstore/sqlc.yaml
 
 # ─── AWS / Deploy ──────────────────────────────────────────────────────────────
 AWS_REGION           ?= us-east-1

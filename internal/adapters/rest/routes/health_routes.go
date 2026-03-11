@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"github.com/DevKayoS/fintech-kodify/internal/controllers"
+	"github.com/DevKayoS/fintech-kodify/internal/adapters/rest/controllers"
 	"github.com/gin-gonic/gin"
 )
 

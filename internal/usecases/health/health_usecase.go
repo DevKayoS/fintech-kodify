@@ -1,11 +1,11 @@
-package services
+package health
 
 import (
 	"context"
 	"log/slog"
 	"os"
 
-	"github.com/DevKayoS/fintech-kodify/internal/pgstore"
+	"github.com/DevKayoS/fintech-kodify/internal/infrastructure/pgstore"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -13,12 +13,12 @@ type HealthRepository interface {
 	GetDBStatus(ctx context.Context) (pgstore.GetDBStatusRow, error)
 }
 
-type HealthService struct {
+type HealthUseCase struct {
 	repository HealthRepository
 }
 
-func NewHealthService(pool *pgxpool.Pool) *HealthService {
-	return &HealthService{
+func NewHealthUseCase(pool *pgxpool.Pool) *HealthUseCase {
+	return &HealthUseCase{
 		repository: pgstore.New(pool),
 	}
 }
@@ -36,7 +36,7 @@ type AppStatus struct {
 	DB     DBStatus `json:"db"`
 }
 
-func (s *HealthService) GetStatus(ctx context.Context) AppStatus {
+func (uc *HealthUseCase) GetStatus(ctx context.Context) AppStatus {
 	env := os.Getenv("APP_ENV")
 	if env == "" {
 		env = "production"
@@ -48,7 +48,7 @@ func (s *HealthService) GetStatus(ctx context.Context) AppStatus {
 		DB:     DBStatus{OK: false},
 	}
 
-	row, err := s.repository.GetDBStatus(ctx)
+	row, err := uc.repository.GetDBStatus(ctx)
 	if err != nil {
 		slog.Error("[GetStatus] algo deu errado ao tentar consultar o banco de dados", "error", err)
 		return status

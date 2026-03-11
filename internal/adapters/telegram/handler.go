@@ -1,4 +1,4 @@
-package bot
+package telegram
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/DevKayoS/fintech-kodify/internal/models"
 	"github.com/aws/aws-lambda-go/events"
 )
 
@@ -18,7 +17,7 @@ func HandleUpdate(ctx context.Context, req events.APIGatewayProxyRequest) (event
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusUnauthorized}, nil
 	}
 
-	var update models.TelegramUpdate
+	var update TelegramUpdate
 	if err := json.Unmarshal([]byte(req.Body), &update); err != nil {
 		slog.Error("telegram webhook: failed to parse update", "error", err)
 		return okResponse(), nil // sempre 200 para o Telegram não re-tentar
@@ -41,14 +40,14 @@ func HandleUpdate(ctx context.Context, req events.APIGatewayProxyRequest) (event
 		// token := args[0]
 		// userService.LinkTelegramChatID(ctx, token, chatID)
 	case "/gasto":
-		// TODO: registrar gasto via expense service
-		// expenseService.CreateFromTelegram(ctx, chatID, args)
+		// TODO: registrar gasto via expense use case
+		// expenseUseCase.CreateFromTelegram(ctx, chatID, args)
 	case "/investimento":
-		// TODO: registrar investimento via investment service
-		// investmentService.CreateFromTelegram(ctx, chatID, args)
+		// TODO: registrar investimento via investment use case
+		// investmentUseCase.CreateFromTelegram(ctx, chatID, args)
 	case "/resumo":
 		// TODO: buscar resumo mensal e enviar mensagem
-		// summaryService.GetSummary(ctx, chatID, args)
+		// summaryUseCase.GetSummary(ctx, chatID, args)
 	case "/extrato":
 		// TODO: buscar extrato e enviar mensagem
 	case "/categorias":
