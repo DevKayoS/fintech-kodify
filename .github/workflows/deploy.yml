@@ -60,6 +60,8 @@ jobs:
         env:
           TF_VAR_database_url: ${{ secrets.DATABASE_URL }}
           TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+          TF_VAR_telegram_bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TF_VAR_telegram_webhook_secret: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
         run: terraform apply -auto-approve
 
       - name: Deploy Lambda code (API)
@@ -77,6 +79,15 @@ jobs:
             --zip-file fileb://lambda-telegram.zip \
             --region ${{ vars.AWS_REGION }} \
             --no-cli-pager
+
+      - name: Register Telegram webhook
+        run: |
+          curl --fail --silent --show-error \
+            -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/setWebhook" \
+            -H "Content-Type: application/json" \
+            -d "{\"url\":\"https://api.kodify.com.br/telegram\",\"secret_token\":\"${{ secrets.TELEGRAM_WEBHOOK_SECRET }}\",\"allowed_updates\":[\"message\"]}" \
+            && echo "✓ Webhook registrado em https://api.kodify.com.br/telegram" \
+            || (echo "✗ Falha ao registrar webhook" && exit 1)
 
       - name: Health check
         run: |

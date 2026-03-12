@@ -21,3 +21,15 @@ variable "database_url" {
   type        = string
   sensitive   = true
 }
+
+variable "telegram_bot_token" {
+  description = "Token do bot Telegram (obtido via @BotFather)"
+  type        = string
+  sensitive   = true
+}
+
+variable "telegram_webhook_secret" {
+  description = "Segredo para validar webhooks do Telegram (X-Telegram-Bot-Api-Secret-Token)"
+  type        = string
+  sensitive   = true
+}

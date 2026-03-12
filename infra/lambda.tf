@@ -40,7 +40,9 @@ resource "aws_lambda_function" "telegram" {
 
   environment {
     variables = {
-      DATABASE_URL = var.database_url
+      DATABASE_URL             = var.database_url
+      TELEGRAM_BOT_TOKEN       = var.telegram_bot_token
+      TELEGRAM_WEBHOOK_SECRET  = var.telegram_webhook_secret
     }
   }
 

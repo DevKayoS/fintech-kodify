@@ -44,6 +44,30 @@ resource "aws_api_gateway_integration" "proxy" {
   uri                     = aws_lambda_function.api.invoke_arn
 }
 
+# ── Telegram webhook: POST /telegram ─────────────────────────────────────────
+
+resource "aws_api_gateway_resource" "telegram" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  parent_id   = aws_api_gateway_rest_api.api.root_resource_id
+  path_part   = "telegram"
+}
+
+resource "aws_api_gateway_method" "telegram" {
+  rest_api_id   = aws_api_gateway_rest_api.api.id
+  resource_id   = aws_api_gateway_resource.telegram.id
+  http_method   = "POST"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "telegram" {
+  rest_api_id             = aws_api_gateway_rest_api.api.id
+  resource_id             = aws_api_gateway_resource.telegram.id
+  http_method             = aws_api_gateway_method.telegram.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.telegram.invoke_arn
+}
+
 # ── Deployment + Stage ────────────────────────────────────────────────────────
 
 resource "aws_api_gateway_deployment" "api" {
@@ -56,6 +80,8 @@ resource "aws_api_gateway_deployment" "api" {
       aws_api_gateway_integration.root.id,
       aws_api_gateway_method.proxy.id,
       aws_api_gateway_integration.proxy.id,
+      aws_api_gateway_method.telegram.id,
+      aws_api_gateway_integration.telegram.id,
     ]))
   }
 
@@ -66,6 +92,7 @@ resource "aws_api_gateway_deployment" "api" {
   depends_on = [
     aws_api_gateway_integration.root,
     aws_api_gateway_integration.proxy,
+    aws_api_gateway_integration.telegram,
   ]
 }
 
@@ -83,6 +110,14 @@ resource "aws_lambda_permission" "apigw" {
   function_name = aws_lambda_function.api.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.api.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "apigw_telegram" {
+  statement_id  = "apigw-telegram-invoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.telegram.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.api.execution_arn}/*/POST/telegram"
 }
 
 # ── Custom domain: api.kodify.com.br ─────────────────────────────────────────

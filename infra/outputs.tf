@@ -15,3 +15,8 @@ output "api_lambda_arn" {
 output "telegram_lambda_arn" {
   value = aws_lambda_function.telegram.arn
 }
+
+output "telegram_webhook_url" {
+  description = "URL para registrar como webhook no Telegram (POST /telegram)"
+  value       = "${aws_api_gateway_stage.api.invoke_url}/telegram"
+}
