@@ -125,11 +125,11 @@ func (uc *UserUseCase) finishRegistration(ctx context.Context, chatID int64, dat
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			if strings.Contains(pgErr.ConstraintName, "cpf") {
+		if errors.As(err, &pgErr) && pgErr.Code == pgErrUniqueViolation {
+			if strings.Contains(pgErr.ConstraintName, pgConstraintCPF) {
 				return "", fmt.Errorf("❌ Este CPF já está cadastrado em outra conta.\n\nInforme outro CPF:")
 			}
-			if strings.Contains(pgErr.ConstraintName, "email") {
+			if strings.Contains(pgErr.ConstraintName, pgConstraintEmail) {
 				return "", fmt.Errorf("❌ Este e-mail já está cadastrado.\n\nInforme outro e-mail:")
 			}
 		}

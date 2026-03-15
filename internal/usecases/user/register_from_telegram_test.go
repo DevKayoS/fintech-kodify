@@ -275,7 +275,7 @@ func TestHandleRegistrationStep_Telefone_Invalido(t *testing.T) {
 
 func TestHandleRegistrationStep_CPF_JaCadastrado(t *testing.T) {
 	repo := newMockRepo()
-	repo.insertErr = &pgconn.PgError{Code: "23505", ConstraintName: "users_cpf_key"}
+	repo.insertErr = &pgconn.PgError{Code: pgErrUniqueViolation, ConstraintName: pgConstraintCPFKey}
 	uc := newUC(repo)
 	ctx := context.Background()
 
@@ -297,7 +297,7 @@ func TestHandleRegistrationStep_CPF_JaCadastrado(t *testing.T) {
 
 func TestHandleRegistrationStep_Email_JaCadastrado(t *testing.T) {
 	repo := newMockRepo()
-	repo.insertErr = &pgconn.PgError{Code: "23505", ConstraintName: "users_email_key"}
+	repo.insertErr = &pgconn.PgError{Code: pgErrUniqueViolation, ConstraintName: pgConstraintEmailKey}
 	uc := newUC(repo)
 	ctx := context.Background()
 
