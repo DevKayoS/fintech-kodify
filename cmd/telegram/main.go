@@ -7,6 +7,7 @@ import (
 	"github.com/DevKayoS/fintech-kodify/internal/adapters/telegram"
 	"github.com/DevKayoS/fintech-kodify/internal/infrastructure/pgstore/database"
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/expense"
+	"github.com/DevKayoS/fintech-kodify/internal/usecases/user"
 	"github.com/aws/aws-lambda-go/events"
 	awslambda "github.com/aws/aws-lambda-go/lambda"
 )
@@ -21,7 +22,8 @@ func init() {
 	}
 
 	expenseUC := expense.NewExpenseUseCase(database.Pool)
-	telegramHandler = telegram.NewHandler(expenseUC)
+	userUC := user.NewUserUseCase(database.Pool)
+	telegramHandler = telegram.NewHandler(expenseUC, userUC)
 
 	slog.Info("database connected")
 }

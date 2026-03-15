@@ -11,15 +11,17 @@ import (
 	"strings"
 
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/expense"
+	"github.com/DevKayoS/fintech-kodify/internal/usecases/user"
 	"github.com/aws/aws-lambda-go/events"
 )
 
 type Handler struct {
 	expenseUC *expense.ExpenseUseCase
+	userUC    *user.UserUseCase
 }
 
-func NewHandler(expenseUC *expense.ExpenseUseCase) *Handler {
-	return &Handler{expenseUC: expenseUC}
+func NewHandler(expenseUC *expense.ExpenseUseCase, userUC *user.UserUseCase) *Handler {
+	return &Handler{expenseUC: expenseUC, userUC: userUC}
 }
 
 func (h *Handler) HandleUpdate(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -47,9 +49,7 @@ func (h *Handler) HandleUpdate(ctx context.Context, req events.APIGatewayProxyRe
 
 	switch command {
 	case "/start":
-		// TODO: vincular telegram_chat_id ao usuário via token
-		// token := args[0]
-		// userService.LinkTelegramChatID(ctx, token, chatID)
+		h.handleStart(ctx, chatID, args)
 	case "/gasto":
 		h.handleGasto(ctx, chatID, args)
 	case "/investimento":
@@ -69,6 +69,21 @@ func (h *Handler) HandleUpdate(ctx context.Context, req events.APIGatewayProxyRe
 	}
 
 	return okResponse(), nil
+}
+
+func (h *Handler) handleStart(ctx context.Context, chatID int64, args []string) {
+	if len(args) == 0 {
+		sendMessage(chatID, "Para vincular sua conta, acesse o app e gere um token em *Configurações > Vincular Telegram*.\n\nDepois envie: `/start <token>`")
+		return
+	}
+
+	token := args[0]
+	if err := h.userUC.LinkTelegramChatID(ctx, token, chatID); err != nil {
+		sendMessage(chatID, "❌ "+err.Error())
+		return
+	}
+
+	sendMessage(chatID, "✅ *Conta vinculada com sucesso!*\n\nAgora você pode registrar gastos com `/gasto` e investimentos com `/investimento`.\n\nDigite /ajuda para ver todos os comandos.")
 }
 
 func (h *Handler) handleGasto(ctx context.Context, chatID int64, args []string) {

@@ -9,16 +9,13 @@ import (
 
 type API struct {
 	HealthController *controllers.HealthController
-	// TODO: adicionar controllers conforme implementados
-	// TokenController      *controllers.TokenController
-	// UserController       *controllers.UserController
-	// ExpenseController    *controllers.ExpenseController
-	// InvestmentController *controllers.InvestmentController
+	UserController   *controllers.UserController
 }
 
-func NewAPI(hc *controllers.HealthController) *API {
+func NewAPI(hc *controllers.HealthController, uc *controllers.UserController) *API {
 	return &API{
 		HealthController: hc,
+		UserController:   uc,
 	}
 }
 
@@ -30,15 +27,11 @@ func (a *API) BindRoutes(r *gin.Engine) {
 	public := v1.Group("/")
 	{
 		routes.SetupHealthRoutes(public, a.HealthController)
-		// TODO: routes.SetupTokenRoutes(public, a.TokenController)
-		// TODO: routes.SetupUserRoutes(public, a.UserController) // POST /users (criação pública)
 	}
 
-	// protected := v1.Group("/")
-	// protected.Use(middleware.AuthMiddleware())
-	// {
-	// 	TODO: routes.SetupUserRoutes(protected, a.UserController)
-	// 	TODO: routes.SetupExpenseRoutes(protected, a.ExpenseController)
-	// 	TODO: routes.SetupInvestmentRoutes(protected, a.InvestmentController)
-	// }
+	protected := v1.Group("/")
+	protected.Use(middleware.AuthMiddleware())
+	{
+		routes.SetupUserRoutes(protected, a.UserController)
+	}
 }
