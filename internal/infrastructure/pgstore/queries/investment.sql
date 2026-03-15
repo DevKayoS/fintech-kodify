@@ -58,6 +58,11 @@ SELECT * FROM investment_types WHERE slug = $1;
 -- name: ListInvestmentTypes :many
 SELECT * FROM investment_types ORDER BY name;
 
+-- name: GetTotalInvestmentsByUser :one
+SELECT COALESCE(SUM(amount), 0)::BIGINT AS total
+FROM investments
+WHERE user_id = $1;
+
 -- name: GetInvestmentSummaryByPeriod :many
 SELECT
     it.slug AS type_slug,

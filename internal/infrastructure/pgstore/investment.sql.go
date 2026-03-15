@@ -135,6 +135,19 @@ func (q *Queries) GetInvestmentTypeBySlug(ctx context.Context, slug string) (Inv
 	return i, err
 }
 
+const getTotalInvestmentsByUser = `-- name: GetTotalInvestmentsByUser :one
+SELECT COALESCE(SUM(amount), 0)::BIGINT AS total
+FROM investments
+WHERE user_id = $1
+`
+
+func (q *Queries) GetTotalInvestmentsByUser(ctx context.Context, userID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, getTotalInvestmentsByUser, userID)
+	var total int64
+	err := row.Scan(&total)
+	return total, err
+}
+
 const insertInvestment = `-- name: InsertInvestment :one
 INSERT INTO investments (user_id, investment_type_id, amount, description, invested_at)
 VALUES ($1, $2, $3, $4, $5)

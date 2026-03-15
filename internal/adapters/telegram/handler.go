@@ -189,12 +189,14 @@ func (h *Handler) handleResumo(ctx context.Context, chatID int64) {
 		"📊 *Resumo de %s*\n\n"+
 			"💸 Gastos: R$ %.2f\n"+
 			"💰 Receitas: R$ %.2f\n"+
-			"%s Saldo: R$ %.2f",
+			"%s Saldo: R$ %.2f\n\n"+
+			"📈 Investimentos (total acumulado): R$ %.2f",
 		s.Month.Format("Janeiro/2006"),
 		utils.ToReais(s.TotalExpenses),
 		utils.ToReais(s.TotalRevenues),
 		balanceEmoji,
 		utils.ToReais(s.Balance),
+		utils.ToReais(s.AllTimeInvestments),
 	)
 	sendMessage(chatID, msg)
 }
@@ -223,13 +225,17 @@ func (h *Handler) handleResumoMensal(ctx context.Context, chatID int64) {
 		msg += "\n💸 Nenhum gasto registrado este mês.\n"
 	}
 
-	msg += fmt.Sprintf(
-		"\n💰 *Receitas:* R$ %.2f\n"+
-			"\n%s *Saldo do mês:* R$ %.2f",
-		utils.ToReais(s.TotalRevenues),
-		balanceEmoji,
-		utils.ToReais(s.Balance),
-	)
+	msg += fmt.Sprintf("\n💰 *Receitas:* R$ %.2f\n", utils.ToReais(s.TotalRevenues))
+
+	if len(s.InvestmentsByType) > 0 {
+		msg += "\n📈 *Investimentos do mês:*\n"
+		for _, inv := range s.InvestmentsByType {
+			msg += fmt.Sprintf("  • %s: R$ %.2f\n", inv.Name, utils.ToReais(inv.Total))
+		}
+		msg += fmt.Sprintf("  _Total: R$ %.2f_\n", utils.ToReais(s.TotalInvestments))
+	}
+
+	msg += fmt.Sprintf("\n%s *Saldo do mês:* R$ %.2f", balanceEmoji, utils.ToReais(s.Balance))
 
 	sendMessage(chatID, msg)
 }
