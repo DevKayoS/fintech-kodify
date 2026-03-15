@@ -116,8 +116,8 @@ func (h *Handler) handleCommand(ctx context.Context, chatID int64, command strin
 }
 
 func (h *Handler) handleGasto(ctx context.Context, chatID int64, args []string) {
-	if len(args) < 2 {
-		sendMessage(chatID, "Uso: `/gasto <valor> <categoria> <descrição>`\nEx: `/gasto 39.90 alimentacao Almoço`\n\nUse /categorias para ver as categorias disponíveis.")
+	if len(args) < 1 {
+		sendMessage(chatID, "Uso: `/gasto <valor> [categoria] <descrição>`\nEx: `/gasto 39.90 alimentacao Almoço`\n\nSe não informar a categoria, será usada *Outros*.\nUse /categorias para ver as categorias disponíveis.")
 		return
 	}
 
@@ -128,10 +128,13 @@ func (h *Handler) handleGasto(ctx context.Context, chatID int64, args []string) 
 		return
 	}
 
-	categorySlug := args[1]
+	categorySlug := "outros"
 	description := ""
-	if len(args) > 2 {
-		description = strings.Join(args[2:], " ")
+	if len(args) > 1 {
+		categorySlug = utils.NormalizeSlug(args[1])
+		if len(args) > 2 {
+			description = strings.Join(args[2:], " ")
+		}
 	}
 
 	result, err := h.expenseUC.CreateFromTelegram(ctx, chatID, amount, categorySlug, description)
@@ -256,8 +259,8 @@ func (h *Handler) handleResumoMensal(ctx context.Context, chatID int64, args []s
 }
 
 func (h *Handler) handleInvestimento(ctx context.Context, chatID int64, args []string) {
-	if len(args) < 2 {
-		sendMessage(chatID, "Uso: `/investimento <valor> <tipo> <descrição>`\nEx: `/investimento 500 cdb Tesouro Selic`\n\nUse /tipos_investimento para ver os tipos disponíveis.")
+	if len(args) < 1 {
+		sendMessage(chatID, "Uso: `/investimento <valor> [tipo] <descrição>`\nEx: `/investimento 500 cdb Tesouro Selic`\n\nSe não informar o tipo, será usado *Outros*.\nUse /tipos_investimento para ver os tipos disponíveis.")
 		return
 	}
 
@@ -268,10 +271,13 @@ func (h *Handler) handleInvestimento(ctx context.Context, chatID int64, args []s
 		return
 	}
 
-	typeSlug := args[1]
+	typeSlug := "outros"
 	description := ""
-	if len(args) > 2 {
-		description = strings.Join(args[2:], " ")
+	if len(args) > 1 {
+		typeSlug = utils.NormalizeSlug(args[1])
+		if len(args) > 2 {
+			description = strings.Join(args[2:], " ")
+		}
 	}
 
 	result, err := h.investmentUC.CreateFromTelegram(ctx, chatID, amount, typeSlug, description)
