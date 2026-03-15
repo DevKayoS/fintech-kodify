@@ -39,7 +39,7 @@ func (q *Queries) GetRoleByName(ctx context.Context, name string) (Role, error) 
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, email, password, telegram_chat_id, created_at, updated_at, role_id FROM users
+SELECT id, name, email, password, telegram_chat_id, created_at, updated_at, role_id, cpf, phone FROM users
 WHERE email = $1
 `
 
@@ -55,12 +55,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.RoleID,
+		&i.Cpf,
+		&i.Phone,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, name, email, password, telegram_chat_id, created_at, updated_at, role_id FROM users
+SELECT id, name, email, password, telegram_chat_id, created_at, updated_at, role_id, cpf, phone FROM users
 WHERE id = $1
 `
 
@@ -76,12 +78,14 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.RoleID,
+		&i.Cpf,
+		&i.Phone,
 	)
 	return i, err
 }
 
 const getUserByTelegramChatID = `-- name: GetUserByTelegramChatID :one
-SELECT id, name, email, password, telegram_chat_id, created_at, updated_at, role_id FROM users
+SELECT id, name, email, password, telegram_chat_id, created_at, updated_at, role_id, cpf, phone FROM users
 WHERE telegram_chat_id = $1
 `
 
@@ -97,6 +101,8 @@ func (q *Queries) GetUserByTelegramChatID(ctx context.Context, telegramChatID pg
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.RoleID,
+		&i.Cpf,
+		&i.Phone,
 	)
 	return i, err
 }
@@ -148,7 +154,7 @@ type GetUserWithRoleRow struct {
 	ID             int64       `json:"id"`
 	Name           string      `json:"name"`
 	Email          string      `json:"email"`
-	Password       string      `json:"password"`
+	Password       pgtype.Text `json:"password"`
 	TelegramChatID pgtype.Int8 `json:"telegram_chat_id"`
 	RoleID         pgtype.Int8 `json:"role_id"`
 	RoleName       pgtype.Text `json:"role_name"`
@@ -176,13 +182,40 @@ RETURNING id
 `
 
 type InsertUserParams struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Name     string      `json:"name"`
+	Email    string      `json:"email"`
+	Password pgtype.Text `json:"password"`
 }
 
 func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) (int64, error) {
 	row := q.db.QueryRow(ctx, insertUser, arg.Name, arg.Email, arg.Password)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const insertUserFromTelegram = `-- name: InsertUserFromTelegram :one
+INSERT INTO users (name, cpf, phone, email, telegram_chat_id)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id
+`
+
+type InsertUserFromTelegramParams struct {
+	Name           string      `json:"name"`
+	Cpf            pgtype.Text `json:"cpf"`
+	Phone          pgtype.Text `json:"phone"`
+	Email          string      `json:"email"`
+	TelegramChatID pgtype.Int8 `json:"telegram_chat_id"`
+}
+
+func (q *Queries) InsertUserFromTelegram(ctx context.Context, arg InsertUserFromTelegramParams) (int64, error) {
+	row := q.db.QueryRow(ctx, insertUserFromTelegram,
+		arg.Name,
+		arg.Cpf,
+		arg.Phone,
+		arg.Email,
+		arg.TelegramChatID,
+	)
 	var id int64
 	err := row.Scan(&id)
 	return id, err

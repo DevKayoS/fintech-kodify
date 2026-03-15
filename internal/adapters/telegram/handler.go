@@ -11,17 +11,19 @@ import (
 	"strings"
 
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/expense"
+	"github.com/DevKayoS/fintech-kodify/internal/usecases/revenue"
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/user"
 	"github.com/aws/aws-lambda-go/events"
 )
 
 type Handler struct {
 	expenseUC *expense.ExpenseUseCase
+	revenueUC *revenue.RevenueUseCase
 	userUC    *user.UserUseCase
 }
 
-func NewHandler(expenseUC *expense.ExpenseUseCase, userUC *user.UserUseCase) *Handler {
-	return &Handler{expenseUC: expenseUC, userUC: userUC}
+func NewHandler(expenseUC *expense.ExpenseUseCase, revenueUC *revenue.RevenueUseCase, userUC *user.UserUseCase) *Handler {
+	return &Handler{expenseUC: expenseUC, revenueUC: revenueUC, userUC: userUC}
 }
 
 func (h *Handler) HandleUpdate(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -33,7 +35,7 @@ func (h *Handler) HandleUpdate(ctx context.Context, req events.APIGatewayProxyRe
 	var update TelegramUpdate
 	if err := json.Unmarshal([]byte(req.Body), &update); err != nil {
 		slog.Error("telegram webhook: failed to parse update", "error", err)
-		return okResponse(), nil // sempre 200 para o Telegram não re-tentar
+		return okResponse(), nil
 	}
 
 	if update.Message == nil || update.Message.Text == "" {
@@ -42,53 +44,70 @@ func (h *Handler) HandleUpdate(ctx context.Context, req events.APIGatewayProxyRe
 
 	msg := update.Message
 	chatID := msg.Chat.ID
+	text := strings.TrimSpace(msg.Text)
 
-	command, args := parseCommand(msg.Text)
+	slog.Info("telegram message received", "chat_id", chatID, "text", text)
 
-	slog.Info("telegram command received", "chat_id", chatID, "command", command, "args", args)
-
-	switch command {
-	case "/start":
-		h.handleStart(ctx, chatID, args)
-	case "/gasto":
-		h.handleGasto(ctx, chatID, args)
-	case "/investimento":
-		// TODO: registrar investimento via investment use case
-	case "/resumo":
-		// TODO: buscar resumo mensal e enviar mensagem
-	case "/extrato":
-		// TODO: buscar extrato e enviar mensagem
-	case "/categorias":
-		h.handleCategorias(ctx, chatID)
-	case "/tipos_investimento":
-		// TODO: listar tipos de investimento
-	case "/ajuda":
-		sendMessage(chatID, helpMessage())
-	default:
-		slog.Info("telegram webhook: unknown command", "command", command)
+	// Usuário já cadastrado → processa comandos normalmente
+	if h.userUC.IsRegistered(ctx, chatID) {
+		command, args := parseCommand(text)
+		h.handleCommand(ctx, chatID, command, args)
+		return okResponse(), nil
 	}
 
+	// Usuário em fluxo de cadastro → processa o passo atual
+	step, _ := h.userUC.GetStep(ctx, chatID)
+	if step != "" {
+		reply, err := h.userUC.HandleRegistrationStep(ctx, chatID, text)
+		if err != nil {
+			sendMessage(chatID, "❌ "+err.Error())
+		} else {
+			sendMessage(chatID, reply)
+		}
+		return okResponse(), nil
+	}
+
+	// Usuário desconhecido sem fluxo ativo
+	command, _ := parseCommand(text)
+	if command == "/start" {
+		if err := h.userUC.StartRegistration(ctx, chatID); err != nil {
+			sendMessage(chatID, "❌ Erro ao iniciar cadastro. Tente novamente.")
+			return okResponse(), nil
+		}
+		sendMessage(chatID, "👋 Bem-vindo ao *Kodify*!\n\nVou precisar de algumas informações para criar sua conta.\n\nQual é o seu nome completo?")
+		return okResponse(), nil
+	}
+
+	sendMessage(chatID, "Olá! Para usar o bot você precisa se cadastrar primeiro.\n\nDigite /start para começar.")
 	return okResponse(), nil
 }
 
-func (h *Handler) handleStart(ctx context.Context, chatID int64, args []string) {
-	if len(args) == 0 {
-		sendMessage(chatID, "Para vincular sua conta, acesse o app e gere um token em *Configurações > Vincular Telegram*.\n\nDepois envie: `/start <token>`")
-		return
+func (h *Handler) handleCommand(ctx context.Context, chatID int64, command string, args []string) {
+	switch command {
+	case "/gasto":
+		h.handleGasto(ctx, chatID, args)
+	case "/receber":
+		h.handleReceber(ctx, chatID, args)
+	case "/categorias":
+		h.handleCategorias(ctx, chatID)
+	case "/resumo":
+		// TODO: resumo mensal
+	case "/extrato":
+		// TODO: extrato de transações
+	case "/tipos_investimento":
+		// TODO: listar tipos de investimento
+	case "/investimento":
+		// TODO: registrar investimento
+	case "/ajuda":
+		sendMessage(chatID, helpMessage())
+	default:
+		sendMessage(chatID, "Comando não reconhecido. Digite /ajuda para ver os comandos disponíveis.")
 	}
-
-	token := args[0]
-	if err := h.userUC.LinkTelegramChatID(ctx, token, chatID); err != nil {
-		sendMessage(chatID, "❌ "+err.Error())
-		return
-	}
-
-	sendMessage(chatID, "✅ *Conta vinculada com sucesso!*\n\nAgora você pode registrar gastos com `/gasto` e investimentos com `/investimento`.\n\nDigite /ajuda para ver todos os comandos.")
 }
 
 func (h *Handler) handleGasto(ctx context.Context, chatID int64, args []string) {
 	if len(args) < 2 {
-		sendMessage(chatID, "Uso: `/gasto <valor> <categoria> <descrição>`\nEx: `/gasto 39.90 alimentacao Almoço`")
+		sendMessage(chatID, "Uso: `/gasto <valor> <categoria> <descrição>`\nEx: `/gasto 39.90 alimentacao Almoço`\n\nUse /categorias para ver as categorias disponíveis.")
 		return
 	}
 
@@ -118,6 +137,37 @@ func (h *Handler) handleGasto(ctx context.Context, chatID int64, args []string) 
 	sendMessage(chatID, msg)
 }
 
+func (h *Handler) handleReceber(ctx context.Context, chatID int64, args []string) {
+	if len(args) < 1 {
+		sendMessage(chatID, "Uso: `/receber <valor> <descrição>`\nEx: `/receber 5000 Salário de março`")
+		return
+	}
+
+	amountStr := strings.ReplaceAll(args[0], ",", ".")
+	amount, err := strconv.ParseFloat(amountStr, 64)
+	if err != nil || amount <= 0 {
+		sendMessage(chatID, "❌ Valor inválido. Ex: `/receber 5000 Salário de março`")
+		return
+	}
+
+	description := ""
+	if len(args) > 1 {
+		description = strings.Join(args[1:], " ")
+	}
+
+	result, err := h.revenueUC.CreateFromTelegram(ctx, chatID, amount, description)
+	if err != nil {
+		sendMessage(chatID, "❌ "+err.Error())
+		return
+	}
+
+	msg := fmt.Sprintf("✅ *Receita registrada!*\n\n💰 R$ %.2f", result.Amount)
+	if result.Description != "" {
+		msg += "\n📝 " + result.Description
+	}
+	sendMessage(chatID, msg)
+}
+
 func (h *Handler) handleCategorias(ctx context.Context, chatID int64) {
 	categories, err := h.expenseUC.ListCategories(ctx)
 	if err != nil {
@@ -132,26 +182,18 @@ func (h *Handler) handleCategorias(ctx context.Context, chatID int64) {
 	sendMessage(chatID, msg)
 }
 
-// parseCommand separa o comando dos argumentos de uma mensagem Telegram.
-// Ex: "/gasto 39 alimentacao Almoço" → ("/gasto", ["39", "alimentacao", "Almoço"])
 func parseCommand(text string) (string, []string) {
 	parts := strings.Fields(text)
 	if len(parts) == 0 {
 		return "", nil
 	}
-
 	command := parts[0]
-
-	// Remove sufixo @BotName caso presente (ex: /start@MeuBot)
 	if idx := strings.Index(command, "@"); idx != -1 {
 		command = command[:idx]
 	}
-
 	return command, parts[1:]
 }
 
-// validateWebhookSecret verifica o header X-Telegram-Bot-Api-Secret-Token.
-// Se TELEGRAM_WEBHOOK_SECRET não estiver definida, pula a validação.
 func validateWebhookSecret(req events.APIGatewayProxyRequest) bool {
 	secret := os.Getenv("TELEGRAM_WEBHOOK_SECRET")
 	if secret == "" {

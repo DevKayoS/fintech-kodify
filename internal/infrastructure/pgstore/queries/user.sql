@@ -48,3 +48,8 @@ SELECT * FROM roles WHERE name = $1;
 UPDATE users
 SET telegram_chat_id = NULL, updated_at = NOW()
 WHERE id = $1;
+
+-- name: InsertUserFromTelegram :one
+INSERT INTO users (name, cpf, phone, email, telegram_chat_id)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id;

@@ -20,7 +20,7 @@ FROM (SELECT 1) AS dummy
 type GetDBStatusRow struct {
 	Version        string `json:"version"`
 	MaxConnections int32  `json:"max_connections"`
-	LastMigration  int64  `json:"last_migration"`
+	LastMigration  int32  `json:"last_migration"`
 }
 
 func (q *Queries) GetDBStatus(ctx context.Context) (GetDBStatusRow, error) {

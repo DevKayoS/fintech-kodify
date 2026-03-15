@@ -34,7 +34,7 @@ type DBStatus struct {
 	OK             bool      `json:"ok"`
 	Version        string    `json:"version,omitempty"`
 	MaxConnections int32     `json:"max_connections,omitempty"`
-	LastMigration  int64     `json:"last_migration,omitempty"`
+	LastMigration  int32     `json:"last_migration,omitempty"`
 	LatencyMs      int64     `json:"latency_ms,omitempty"`
 	Pool           PoolStats `json:"pool"`
 }

@@ -51,6 +51,15 @@ type Permission struct {
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
+type Revenue struct {
+	ID          int64              `json:"id"`
+	UserID      int64              `json:"user_id"`
+	Amount      int64              `json:"amount"`
+	Description pgtype.Text        `json:"description"`
+	ReceivedAt  pgtype.Timestamptz `json:"received_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type Role struct {
 	ID          int64              `json:"id"`
 	Name        string             `json:"name"`
@@ -64,8 +73,14 @@ type RolePermission struct {
 }
 
 type SchemaVersion struct {
-	VersionID int64              `json:"version_id"`
-	Tstamp    pgtype.Timestamptz `json:"tstamp"`
+	Version int32 `json:"version"`
+}
+
+type TelegramConversation struct {
+	ChatID    int64              `json:"chat_id"`
+	Step      string             `json:"step"`
+	Data      string             `json:"data"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
 type TelegramLinkToken struct {
@@ -81,9 +96,11 @@ type User struct {
 	ID             int64              `json:"id"`
 	Name           string             `json:"name"`
 	Email          string             `json:"email"`
-	Password       string             `json:"password"`
+	Password       pgtype.Text        `json:"password"`
 	TelegramChatID pgtype.Int8        `json:"telegram_chat_id"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 	RoleID         pgtype.Int8        `json:"role_id"`
+	Cpf            pgtype.Text        `json:"cpf"`
+	Phone          pgtype.Text        `json:"phone"`
 }
