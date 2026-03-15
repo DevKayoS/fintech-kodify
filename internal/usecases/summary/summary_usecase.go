@@ -52,13 +52,20 @@ type MonthlySummary struct {
 
 // GetMonthlySummary retorna o resumo financeiro do mês atual para o usuário
 // identificado pelo chatID do Telegram.
-func (uc *SummaryUseCase) GetMonthlySummary(ctx context.Context, chatID int64) (*MonthlySummary, error) {
+// GetMonthlySummary retorna o resumo financeiro do mês informado (ou mês atual se monthStart for zero).
+func (uc *SummaryUseCase) GetMonthlySummary(ctx context.Context, chatID int64, monthStart time.Time) (*MonthlySummary, error) {
 	user, err := uc.repository.GetUserByTelegramChatID(ctx, pgtype.Int8{Int64: chatID, Valid: true})
 	if err != nil {
 		return nil, fmt.Errorf("conta não vinculada. Use /start para se cadastrar")
 	}
 
-	start, end := utils.CurrentMonthRange()
+	var start, end time.Time
+	if monthStart.IsZero() {
+		start, end = utils.CurrentMonthRange()
+	} else {
+		start = monthStart
+		end = start.AddDate(0, 1, 0)
+	}
 
 	expenseRows, err := uc.repository.GetExpenseSummaryByPeriod(ctx, pgstore.GetExpenseSummaryByPeriodParams{
 		UserID:       user.ID,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/DevKayoS/fintech-kodify/internal/infrastructure/pgstore"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -56,7 +57,7 @@ func TestGetMonthlySummary_SaldoPositivo(t *testing.T) {
 	}
 	uc := newUC(repo)
 
-	s, err := uc.GetMonthlySummary(context.Background(), 42)
+	s, err := uc.GetMonthlySummary(context.Background(), 42, time.Time{})
 	if err != nil {
 		t.Fatalf("erro inesperado: %v", err)
 	}
@@ -86,7 +87,7 @@ func TestGetMonthlySummary_SaldoNegativo(t *testing.T) {
 		},
 	}
 
-	s, err := newUC(repo).GetMonthlySummary(context.Background(), 42)
+	s, err := newUC(repo).GetMonthlySummary(context.Background(), 42, time.Time{})
 	if err != nil {
 		t.Fatalf("erro inesperado: %v", err)
 	}
@@ -104,7 +105,7 @@ func TestGetMonthlySummary_SemReceitas(t *testing.T) {
 		expenseRows:  []pgstore.GetExpenseSummaryByPeriodRow{{Total: 50_000}},
 	}
 
-	s, err := newUC(repo).GetMonthlySummary(context.Background(), 42)
+	s, err := newUC(repo).GetMonthlySummary(context.Background(), 42, time.Time{})
 	if err != nil {
 		t.Fatalf("erro inesperado: %v", err)
 	}
@@ -122,7 +123,7 @@ func TestGetMonthlySummary_SemGastos(t *testing.T) {
 		expenseRows:  nil,
 	}
 
-	s, err := newUC(repo).GetMonthlySummary(context.Background(), 42)
+	s, err := newUC(repo).GetMonthlySummary(context.Background(), 42, time.Time{})
 	if err != nil {
 		t.Fatalf("erro inesperado: %v", err)
 	}
@@ -139,7 +140,7 @@ func TestGetMonthlySummary_SemGastos(t *testing.T) {
 func TestGetMonthlySummary_MesZerado(t *testing.T) {
 	repo := &mockSummaryRepo{user: pgstore.User{ID: 1}}
 
-	s, err := newUC(repo).GetMonthlySummary(context.Background(), 42)
+	s, err := newUC(repo).GetMonthlySummary(context.Background(), 42, time.Time{})
 	if err != nil {
 		t.Fatalf("erro inesperado: %v", err)
 	}
@@ -156,7 +157,7 @@ func TestGetMonthlySummary_MesZerado(t *testing.T) {
 func TestGetMonthlySummary_UsuarioNaoEncontrado(t *testing.T) {
 	repo := &mockSummaryRepo{userErr: errors.New("not found")}
 
-	_, err := newUC(repo).GetMonthlySummary(context.Background(), 99)
+	_, err := newUC(repo).GetMonthlySummary(context.Background(), 42, time.Time{})
 	if err == nil {
 		t.Fatal("esperava erro para usuário não encontrado")
 	}
@@ -175,7 +176,7 @@ func TestGetMonthlySummary_CategoriasSeparadas(t *testing.T) {
 		},
 	}
 
-	s, err := newUC(repo).GetMonthlySummary(context.Background(), 42)
+	s, err := newUC(repo).GetMonthlySummary(context.Background(), 42, time.Time{})
 	if err != nil {
 		t.Fatalf("erro inesperado: %v", err)
 	}
@@ -200,7 +201,7 @@ func TestGetMonthlySummary_InvestimentosPorTipo(t *testing.T) {
 		allTimeInvestments: 1_500_000,
 	}
 
-	s, err := newUC(repo).GetMonthlySummary(context.Background(), 42)
+	s, err := newUC(repo).GetMonthlySummary(context.Background(), 42, time.Time{})
 	if err != nil {
 		t.Fatalf("erro inesperado: %v", err)
 	}
@@ -224,7 +225,7 @@ func TestGetMonthlySummary_AllTimeInvestmentsIndependenteDoPeriodo(t *testing.T)
 		allTimeInvestments: 5_000_000,  // mas tem histórico acumulado
 	}
 
-	s, err := newUC(repo).GetMonthlySummary(context.Background(), 42)
+	s, err := newUC(repo).GetMonthlySummary(context.Background(), 42, time.Time{})
 	if err != nil {
 		t.Fatalf("erro inesperado: %v", err)
 	}

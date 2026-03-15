@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"time"
 	"net/http"
 	"os"
 	"strconv"
@@ -96,7 +97,7 @@ func (h *Handler) handleCommand(ctx context.Context, chatID int64, command strin
 	case "/resumo":
 		h.handleResumo(ctx, chatID)
 	case "/resumo-mensal":
-		h.handleResumoMensal(ctx, chatID)
+		h.handleResumoMensal(ctx, chatID, args)
 	case "/extrato":
 		// TODO: extrato de transações
 	case "/tipos_investimento":
@@ -174,7 +175,7 @@ func (h *Handler) handleReceber(ctx context.Context, chatID int64, args []string
 }
 
 func (h *Handler) handleResumo(ctx context.Context, chatID int64) {
-	s, err := h.summaryUC.GetMonthlySummary(ctx, chatID)
+	s, err := h.summaryUC.GetMonthlySummary(ctx, chatID, time.Time{})
 	if err != nil {
 		sendMessage(chatID, "❌ "+err.Error())
 		return
@@ -191,7 +192,7 @@ func (h *Handler) handleResumo(ctx context.Context, chatID int64) {
 			"💰 Receitas: R$ %.2f\n"+
 			"%s Saldo: R$ %.2f\n\n"+
 			"📈 Investimentos (total acumulado): R$ %.2f",
-		s.Month.Format("Janeiro/2006"),
+		s.Month.Format("01/2006"),
 		utils.ToReais(s.TotalExpenses),
 		utils.ToReais(s.TotalRevenues),
 		balanceEmoji,
@@ -201,8 +202,18 @@ func (h *Handler) handleResumo(ctx context.Context, chatID int64) {
 	sendMessage(chatID, msg)
 }
 
-func (h *Handler) handleResumoMensal(ctx context.Context, chatID int64) {
-	s, err := h.summaryUC.GetMonthlySummary(ctx, chatID)
+func (h *Handler) handleResumoMensal(ctx context.Context, chatID int64, args []string) {
+	var monthStart time.Time
+	if len(args) > 0 {
+		t, err := time.Parse("01/2006", args[0])
+		if err != nil {
+			sendMessage(chatID, "❌ Formato de mês inválido. Use MM/AAAA.\nEx: `/resumo-mensal 03/2026`")
+			return
+		}
+		monthStart = time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
+	}
+
+	s, err := h.summaryUC.GetMonthlySummary(ctx, chatID, monthStart)
 	if err != nil {
 		sendMessage(chatID, "❌ "+err.Error())
 		return
@@ -213,7 +224,7 @@ func (h *Handler) handleResumoMensal(ctx context.Context, chatID int64) {
 		balanceEmoji = "📉"
 	}
 
-	msg := fmt.Sprintf("📊 *Resumo Mensal — %s*\n", s.Month.Format("Janeiro/2006"))
+	msg := fmt.Sprintf("📊 *Resumo Mensal — %s*\n", s.Month.Format("01/2006"))
 
 	if len(s.ExpensesByCategory) > 0 {
 		msg += "\n💸 *Gastos por categoria:*\n"
