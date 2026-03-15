@@ -5,6 +5,21 @@ import (
 	"time"
 )
 
+// ParseDateTime parseia uma string de data em RFC3339 ou YYYY-MM-DD.
+// Retorna time.Now().UTC() se a string for vazia.
+func ParseDateTime(s string) (time.Time, error) {
+	if s == "" {
+		return time.Now().UTC(), nil
+	}
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t.UTC(), nil
+	}
+	if t, err := time.Parse("2006-01-02", s); err == nil {
+		return t.UTC(), nil
+	}
+	return time.Time{}, fmt.Errorf("formato de data inválido, use RFC3339 ou YYYY-MM-DD")
+}
+
 // ParseMonthRange parseia uma string no formato "YYYY-MM" e retorna
 // o início e o fim do mês em UTC.
 func ParseMonthRange(month string) (time.Time, time.Time, error) {

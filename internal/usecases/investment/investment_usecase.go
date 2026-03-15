@@ -16,6 +16,10 @@ type InvestmentRepository interface {
 	GetInvestmentTypeBySlug(ctx context.Context, slug string) (pgstore.InvestmentType, error)
 	InsertInvestment(ctx context.Context, arg pgstore.InsertInvestmentParams) (pgstore.Investment, error)
 	ListInvestmentTypes(ctx context.Context) ([]pgstore.InvestmentType, error)
+	GetInvestmentByID(ctx context.Context, arg pgstore.GetInvestmentByIDParams) (pgstore.GetInvestmentByIDRow, error)
+	DeleteInvestment(ctx context.Context, arg pgstore.DeleteInvestmentParams) error
+	ListInvestmentsByUser(ctx context.Context, userID int64) ([]pgstore.ListInvestmentsByUserRow, error)
+	ListInvestmentsByUserAndPeriod(ctx context.Context, arg pgstore.ListInvestmentsByUserAndPeriodParams) ([]pgstore.ListInvestmentsByUserAndPeriodRow, error)
 }
 
 type InvestmentUseCase struct {

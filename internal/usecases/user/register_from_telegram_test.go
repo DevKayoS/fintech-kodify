@@ -55,6 +55,15 @@ func (m *mockRepo) DeleteConversationState(_ context.Context, chatID int64) erro
 	delete(m.conversations, chatID)
 	return nil
 }
+func (m *mockRepo) GetUserByID(_ context.Context, _ int64) (pgstore.User, error) {
+	return pgstore.User{}, nil
+}
+func (m *mockRepo) GetUserWithRole(_ context.Context, _ string) (pgstore.GetUserWithRoleRow, error) {
+	return pgstore.GetUserWithRoleRow{}, nil
+}
+func (m *mockRepo) UpdateUserPassword(_ context.Context, _ int64, _ string) error {
+	return nil
+}
 
 // errNotFound é um sentinel error genérico para entidade não encontrada no mock.
 var errNotFound = &pgconn.PgError{Code: "02000"}

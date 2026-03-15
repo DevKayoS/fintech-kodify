@@ -17,6 +17,9 @@ type UserRepository interface {
 
 	// user lookup
 	GetUserByTelegramChatID(ctx context.Context, telegramChatID pgtype.Int8) (pgstore.User, error)
+	GetUserByID(ctx context.Context, id int64) (pgstore.User, error)
+	GetUserWithRole(ctx context.Context, email string) (pgstore.GetUserWithRoleRow, error)
+	UpdateUserPassword(ctx context.Context, userID int64, hashedPassword string) error
 
 	// telegram onboarding
 	InsertUserFromTelegram(ctx context.Context, arg pgstore.InsertUserFromTelegramParams) (int64, error)

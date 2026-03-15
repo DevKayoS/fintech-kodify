@@ -63,6 +63,20 @@ func (h *Handler) HandleUpdate(ctx context.Context, req events.APIGatewayProxyRe
 		return okResponse(), nil
 	}
 
+	// /start <token> → tenta vincular conta existente (independente de ter fluxo ativo)
+	command, args := parseCommand(text)
+	if command == "/start" && len(args) > 0 {
+		token := args[0]
+		if err := h.userUC.LinkTelegramChatID(ctx, token, chatID); err != nil {
+			sendMessage(chatID, "❌ "+err.Error())
+			return okResponse(), nil
+		}
+		// Cancela qualquer fluxo de cadastro em andamento
+		_ = h.userUC.CancelRegistration(ctx, chatID)
+		sendMessage(chatID, "✅ *Conta vinculada com sucesso!*\n\nDigite /ajuda para ver os comandos disponíveis.")
+		return okResponse(), nil
+	}
+
 	// Usuário em fluxo de cadastro → processa o passo atual
 	step, _ := h.userUC.GetStep(ctx, chatID)
 	if step != "" {
@@ -76,17 +90,16 @@ func (h *Handler) HandleUpdate(ctx context.Context, req events.APIGatewayProxyRe
 	}
 
 	// Usuário desconhecido sem fluxo ativo
-	command, _ := parseCommand(text)
 	if command == "/start" {
 		if err := h.userUC.StartRegistration(ctx, chatID); err != nil {
 			sendMessage(chatID, "❌ Erro ao iniciar cadastro. Tente novamente.")
 			return okResponse(), nil
 		}
-		sendMessage(chatID, "👋 Bem-vindo ao *Kodify*!\n\nVou precisar de algumas informações para criar sua conta.\n\nQual é o seu nome completo?")
+		sendMessage(chatID, "👋 Bem-vindo ao *Kodify*!\n\nVou precisar de algumas informações para criar sua conta.\n\nQual é o seu nome completo?\n\n_Caso já tenha uma conta, use /start <token> com o token gerado no app._")
 		return okResponse(), nil
 	}
 
-	sendMessage(chatID, "Olá! Para usar o bot você precisa se cadastrar primeiro.\n\nDigite /start para começar.")
+	sendMessage(chatID, "Olá! Para usar o bot você precisa se cadastrar primeiro.\n\nDigite /start para criar uma conta ou /start <token> para vincular uma conta existente.")
 	return okResponse(), nil
 }
 
@@ -108,6 +121,8 @@ func (h *Handler) handleCommand(ctx context.Context, chatID int64, command strin
 		h.handleInvestimento(ctx, chatID, args)
 	case "/tipos_investimento":
 		h.handleTiposInvestimento(ctx, chatID)
+	case "/criar_senha":
+		h.handleCriarSenha(ctx, chatID, args)
 	case "/ajuda":
 		sendMessage(chatID, helpMessage())
 	default:
@@ -319,6 +334,26 @@ func (h *Handler) handleCategorias(ctx context.Context, chatID int64) {
 		msg += fmt.Sprintf("• `%s` — %s\n", c.Slug, c.Name)
 	}
 	sendMessage(chatID, msg)
+}
+
+func (h *Handler) handleCriarSenha(ctx context.Context, chatID int64, args []string) {
+	if len(args) == 0 {
+		sendMessage(chatID, "Uso: `/criar_senha <sua_senha>`\nEx: `/criar_senha MinhaS3nh4!`\n\nA senha deve ter no mínimo 8 caracteres.\n\n_Esta senha será usada para acessar a plataforma web Kodify, que está em construção._")
+		return
+	}
+
+	password := args[0]
+	if len(password) < 8 {
+		sendMessage(chatID, "❌ A senha deve ter no mínimo 8 caracteres.")
+		return
+	}
+
+	if err := h.userUC.SetPasswordFromTelegram(ctx, chatID, password); err != nil {
+		sendMessage(chatID, "❌ "+err.Error())
+		return
+	}
+
+	sendMessage(chatID, "✅ *Senha definida com sucesso!*\n\nQuando a plataforma web Kodify estiver disponível, você poderá acessá-la com seu e-mail e essa senha.")
 }
 
 func (h *Handler) handleExtrato(ctx context.Context, chatID int64, args []string) {

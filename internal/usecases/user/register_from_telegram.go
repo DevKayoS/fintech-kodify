@@ -40,6 +40,11 @@ func (uc *UserUseCase) StartRegistration(ctx context.Context, chatID int64) erro
 	})
 }
 
+// CancelRegistration cancela o fluxo de cadastro em andamento, se houver.
+func (uc *UserUseCase) CancelRegistration(ctx context.Context, chatID int64) error {
+	return uc.repository.DeleteConversationState(ctx, chatID)
+}
+
 // GetStep retorna o passo atual da conversa, ou ("", nil) se não houver estado.
 func (uc *UserUseCase) GetStep(ctx context.Context, chatID int64) (string, error) {
 	conv, err := uc.repository.GetConversationState(ctx, chatID)

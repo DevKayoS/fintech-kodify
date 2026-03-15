@@ -31,6 +31,18 @@ func (m *mockRepo) InsertInvestment(_ context.Context, arg pgstore.InsertInvestm
 func (m *mockRepo) ListInvestmentTypes(_ context.Context) ([]pgstore.InvestmentType, error) {
 	return []pgstore.InvestmentType{m.invType}, nil
 }
+func (m *mockRepo) GetInvestmentByID(_ context.Context, _ pgstore.GetInvestmentByIDParams) (pgstore.GetInvestmentByIDRow, error) {
+	return pgstore.GetInvestmentByIDRow{}, nil
+}
+func (m *mockRepo) DeleteInvestment(_ context.Context, _ pgstore.DeleteInvestmentParams) error {
+	return nil
+}
+func (m *mockRepo) ListInvestmentsByUser(_ context.Context, _ int64) ([]pgstore.ListInvestmentsByUserRow, error) {
+	return nil, nil
+}
+func (m *mockRepo) ListInvestmentsByUserAndPeriod(_ context.Context, _ pgstore.ListInvestmentsByUserAndPeriodParams) ([]pgstore.ListInvestmentsByUserAndPeriodRow, error) {
+	return nil, nil
+}
 
 func newUC(repo *mockRepo) *InvestmentUseCase {
 	return &InvestmentUseCase{repository: repo}

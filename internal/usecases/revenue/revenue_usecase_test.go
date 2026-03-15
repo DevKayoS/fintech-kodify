@@ -27,6 +27,12 @@ func (m *mockRevenueRepo) InsertRevenue(_ context.Context, arg pgstore.InsertRev
 		Amount: arg.Amount,
 	}, m.insertErr
 }
+func (m *mockRevenueRepo) ListRevenuesByUser(_ context.Context, _ int64) ([]pgstore.Revenue, error) {
+	return nil, nil
+}
+func (m *mockRevenueRepo) ListRevenuesByUserAndPeriod(_ context.Context, _ pgstore.ListRevenuesByUserAndPeriodParams) ([]pgstore.Revenue, error) {
+	return nil, nil
+}
 
 func newUC(repo *mockRevenueRepo) *RevenueUseCase {
 	return &RevenueUseCase{repository: repo}

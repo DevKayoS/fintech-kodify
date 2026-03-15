@@ -14,6 +14,8 @@ import (
 type RevenueRepository interface {
 	GetUserByTelegramChatID(ctx context.Context, telegramChatID pgtype.Int8) (pgstore.User, error)
 	InsertRevenue(ctx context.Context, arg pgstore.InsertRevenueParams) (pgstore.Revenue, error)
+	ListRevenuesByUser(ctx context.Context, userID int64) ([]pgstore.Revenue, error)
+	ListRevenuesByUserAndPeriod(ctx context.Context, arg pgstore.ListRevenuesByUserAndPeriodParams) ([]pgstore.Revenue, error)
 }
 
 type RevenueUseCase struct {

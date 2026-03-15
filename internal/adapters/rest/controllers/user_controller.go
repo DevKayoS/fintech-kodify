@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/DevKayoS/fintech-kodify/internal/errors"
+	"github.com/DevKayoS/fintech-kodify/internal/models"
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/user"
 	"github.com/gin-gonic/gin"
 )
@@ -14,6 +15,26 @@ type UserController struct {
 
 func NewUserController(uc *user.UserUseCase) *UserController {
 	return &UserController{useCase: uc}
+}
+
+// GetMe retorna o perfil do usuário autenticado.
+// GET /api/v1/me
+func (c *UserController) GetMe(ctx *gin.Context) {
+	userID := ctx.GetInt64("user_id")
+
+	result, err := c.useCase.GetMe(ctx.Request.Context(), userID)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, models.UserProfileResponse{
+		ID:        result.ID,
+		Name:      result.Name,
+		Email:     result.Email,
+		Role:      result.Role,
+		CreatedAt: result.CreatedAt.Format("2006-01-02T15:04:05Z"),
+	})
 }
 
 // GenerateTelegramLink gera um token de vinculação do Telegram para o usuário autenticado.

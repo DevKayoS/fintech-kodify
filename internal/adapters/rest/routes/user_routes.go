@@ -6,5 +6,6 @@ import (
 )
 
 func SetupUserRoutes(rg *gin.RouterGroup, uc *controllers.UserController) {
+	rg.GET("/me", uc.GetMe)
 	rg.POST("/telegram/link", uc.GenerateTelegramLink)
 }

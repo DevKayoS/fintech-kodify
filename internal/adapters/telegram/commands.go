@@ -24,6 +24,7 @@ _Ex: /investimento 500 cdb Tesouro Selic_
 
 🔗 *Conta*
 /start — cria sua conta
+/criar\_senha <senha> — define uma senha para acessar a plataforma web _(em breve)_
 
 ❓ /ajuda — exibe esta mensagem`
 }
