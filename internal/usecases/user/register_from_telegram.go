@@ -3,9 +3,12 @@ package user
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/DevKayoS/fintech-kodify/internal/infrastructure/pgstore"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -47,7 +50,8 @@ func (uc *UserUseCase) GetStep(ctx context.Context, chatID int64) (string, error
 }
 
 // HandleRegistrationStep processa a resposta do usuário no passo atual e avança o fluxo.
-// Retorna a próxima mensagem a enviar ao usuário.
+// Retorna (mensagem, nil) quando deve permanecer no passo ou avançar.
+// Retorna ("", error) apenas em erros internos irrecuperáveis.
 func (uc *UserUseCase) HandleRegistrationStep(ctx context.Context, chatID int64, text string) (string, error) {
 	conv, err := uc.repository.GetConversationState(ctx, chatID)
 	if err != nil {
@@ -61,28 +65,36 @@ func (uc *UserUseCase) HandleRegistrationStep(ctx context.Context, chatID int64,
 
 	switch conv.Step {
 	case StepAwaitingName:
-		if len(text) < 2 {
+		if len(strings.TrimSpace(text)) < 2 {
 			return "Nome muito curto. Por favor, informe seu nome completo:", nil
 		}
-		data.Name = text
+		data.Name = strings.TrimSpace(text)
 		return uc.advanceTo(ctx, chatID, StepAwaitingCPF, data, "Qual é o seu CPF? (apenas números ou com pontuação)")
 
 	case StepAwaitingCPF:
-		data.CPF = text
+		if !ValidateCPF(text) {
+			return "CPF inválido. Por favor, informe um CPF válido.\nEx: `123.456.789-09` ou `12345678909`", nil
+		}
+		data.CPF = onlyDigits(text)
 		return uc.advanceTo(ctx, chatID, StepAwaitingEmail, data, "Qual é o seu e-mail?")
 
 	case StepAwaitingEmail:
-		if len(text) < 5 || !containsAt(text) {
-			return "E-mail inválido. Por favor, informe um e-mail válido:", nil
+		if !ValidateEmail(text) {
+			return "E-mail inválido. Por favor, informe um e-mail válido.\nEx: `joao@email.com`", nil
 		}
-		data.Email = text
-		return uc.advanceTo(ctx, chatID, StepAwaitingPhone, data, "Qual é o seu telefone? (com DDD)")
+		data.Email = strings.TrimSpace(text)
+		return uc.advanceTo(ctx, chatID, StepAwaitingPhone, data, "Qual é o seu telefone? (com DDD, ex: 11999999999)")
 
 	case StepAwaitingPhone:
-		if err := uc.finishRegistration(ctx, chatID, data, text); err != nil {
-			return "", err
+		if !ValidatePhone(text) {
+			return "Telefone inválido. Informe um número com DDD (10 ou 11 dígitos).\nEx: `11999999999`", nil
 		}
-		return fmt.Sprintf("✅ *Conta criada com sucesso, %s!*\n\nAgora você pode:\n• `/gasto <valor> <categoria> <descrição>` — registrar um gasto\n• `/receber <valor> <descrição>` — registrar uma receita\n• `/ajuda` — ver todos os comandos", data.Name), nil
+		msg, err := uc.finishRegistration(ctx, chatID, data, onlyDigits(text))
+		if err != nil {
+			// erros de duplicata retornam mensagem amigável para o usuário poder corrigir
+			return err.Error(), nil
+		}
+		return msg, nil
 	}
 
 	return "", fmt.Errorf("passo desconhecido: %s", conv.Step)
@@ -103,7 +115,7 @@ func (uc *UserUseCase) advanceTo(ctx context.Context, chatID int64, nextStep str
 	return question, nil
 }
 
-func (uc *UserUseCase) finishRegistration(ctx context.Context, chatID int64, data conversationData, phone string) error {
+func (uc *UserUseCase) finishRegistration(ctx context.Context, chatID int64, data conversationData, phone string) (string, error) {
 	_, err := uc.repository.InsertUserFromTelegram(ctx, pgstore.InsertUserFromTelegramParams{
 		Name:           data.Name,
 		Cpf:            pgtype.Text{String: data.CPF, Valid: data.CPF != ""},
@@ -112,17 +124,18 @@ func (uc *UserUseCase) finishRegistration(ctx context.Context, chatID int64, dat
 		TelegramChatID: pgtype.Int8{Int64: chatID, Valid: true},
 	})
 	if err != nil {
-		return fmt.Errorf("erro ao criar conta. Verifique se o e-mail já está em uso")
-	}
-	_ = uc.repository.DeleteConversationState(ctx, chatID)
-	return nil
-}
-
-func containsAt(s string) bool {
-	for _, c := range s {
-		if c == '@' {
-			return true
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			if strings.Contains(pgErr.ConstraintName, "cpf") {
+				return "", fmt.Errorf("❌ Este CPF já está cadastrado em outra conta.\n\nInforme outro CPF:")
+			}
+			if strings.Contains(pgErr.ConstraintName, "email") {
+				return "", fmt.Errorf("❌ Este e-mail já está cadastrado.\n\nInforme outro e-mail:")
+			}
 		}
+		return "", fmt.Errorf("❌ Erro ao criar conta, tente novamente")
 	}
-	return false
+
+	_ = uc.repository.DeleteConversationState(ctx, chatID)
+	return fmt.Sprintf("✅ *Conta criada com sucesso, %s!*\n\nAgora você pode:\n• `/gasto <valor> <categoria> <descrição>` — registrar um gasto\n• `/receber <valor> <descrição>` — registrar uma receita\n• `/ajuda` — ver todos os comandos", data.Name), nil
 }
