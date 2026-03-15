@@ -7,6 +7,10 @@ func helpMessage() string {
 /gasto <valor> <categoria> <descrição>
 _Ex: /gasto 39.90 alimentacao Almoço no restaurante_
 
+💵 *Receitas*
+/receber <valor> <descrição>
+_Ex: /receber 5000 Salário de março_
+
 📈 *Investimentos*
 /investimento <valor> <tipo> <descrição>
 _Ex: /investimento 500 cdb Tesouro Selic_
@@ -19,7 +23,7 @@ _Ex: /investimento 500 cdb Tesouro Selic_
 /tipos\_investimento — lista de tipos de investimento
 
 🔗 *Conta*
-/start <token> — vincula este chat à sua conta
+/start — cria sua conta
 
 ❓ /ajuda — exibe esta mensagem`
 }
