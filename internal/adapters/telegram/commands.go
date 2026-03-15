@@ -18,7 +18,7 @@ _Ex: /investimento 500 cdb Tesouro Selic_
 📊 *Consultas*
 /resumo — totais do mês (gastos, receitas e saldo)
 /resumo\_mensal — detalhado por categoria
-/extrato — histórico de transações
+/extrato [MM/AAAA] — histórico de transações do mês
 /categorias — lista de categorias de despesa
 /tipos\_investimento — lista de tipos de investimento
 

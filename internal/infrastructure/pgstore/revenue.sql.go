@@ -97,3 +97,45 @@ func (q *Queries) ListRevenuesByUser(ctx context.Context, userID int64) ([]Reven
 	}
 	return items, nil
 }
+
+const listRevenuesByUserAndPeriod = `-- name: ListRevenuesByUserAndPeriod :many
+SELECT id, user_id, amount, description, received_at, created_at
+FROM revenues
+WHERE user_id = $1
+  AND received_at >= $2
+  AND received_at < $3
+ORDER BY received_at DESC
+`
+
+type ListRevenuesByUserAndPeriodParams struct {
+	UserID       int64              `json:"user_id"`
+	ReceivedAt   pgtype.Timestamptz `json:"received_at"`
+	ReceivedAt_2 pgtype.Timestamptz `json:"received_at_2"`
+}
+
+func (q *Queries) ListRevenuesByUserAndPeriod(ctx context.Context, arg ListRevenuesByUserAndPeriodParams) ([]Revenue, error) {
+	rows, err := q.db.Query(ctx, listRevenuesByUserAndPeriod, arg.UserID, arg.ReceivedAt, arg.ReceivedAt_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Revenue
+	for rows.Next() {
+		var i Revenue
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Amount,
+			&i.Description,
+			&i.ReceivedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

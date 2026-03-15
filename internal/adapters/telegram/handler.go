@@ -14,6 +14,7 @@ import (
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/expense"
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/investment"
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/revenue"
+	"github.com/DevKayoS/fintech-kodify/internal/usecases/statement"
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/summary"
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/user"
 	"github.com/DevKayoS/fintech-kodify/internal/utils"
@@ -25,11 +26,12 @@ type Handler struct {
 	investmentUC *investment.InvestmentUseCase
 	revenueUC    *revenue.RevenueUseCase
 	summaryUC    *summary.SummaryUseCase
+	statementUC  *statement.StatementUseCase
 	userUC       *user.UserUseCase
 }
 
-func NewHandler(expenseUC *expense.ExpenseUseCase, investmentUC *investment.InvestmentUseCase, revenueUC *revenue.RevenueUseCase, summaryUC *summary.SummaryUseCase, userUC *user.UserUseCase) *Handler {
-	return &Handler{expenseUC: expenseUC, investmentUC: investmentUC, revenueUC: revenueUC, summaryUC: summaryUC, userUC: userUC}
+func NewHandler(expenseUC *expense.ExpenseUseCase, investmentUC *investment.InvestmentUseCase, revenueUC *revenue.RevenueUseCase, summaryUC *summary.SummaryUseCase, statementUC *statement.StatementUseCase, userUC *user.UserUseCase) *Handler {
+	return &Handler{expenseUC: expenseUC, investmentUC: investmentUC, revenueUC: revenueUC, summaryUC: summaryUC, statementUC: statementUC, userUC: userUC}
 }
 
 func (h *Handler) HandleUpdate(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -101,7 +103,7 @@ func (h *Handler) handleCommand(ctx context.Context, chatID int64, command strin
 	case "/resumo-mensal":
 		h.handleResumoMensal(ctx, chatID, args)
 	case "/extrato":
-		// TODO: extrato de transações
+		h.handleExtrato(ctx, chatID, args)
 	case "/investimento":
 		h.handleInvestimento(ctx, chatID, args)
 	case "/tipos_investimento":
@@ -310,6 +312,55 @@ func (h *Handler) handleCategorias(ctx context.Context, chatID int64) {
 	for _, c := range categories {
 		msg += fmt.Sprintf("• `%s` — %s\n", c.Slug, c.Name)
 	}
+	sendMessage(chatID, msg)
+}
+
+func (h *Handler) handleExtrato(ctx context.Context, chatID int64, args []string) {
+	var monthStart time.Time
+	if len(args) > 0 {
+		t, err := time.Parse("01/2006", args[0])
+		if err != nil {
+			sendMessage(chatID, "❌ Formato de mês inválido. Use MM/AAAA.\nEx: `/extrato 03/2026`")
+			return
+		}
+		monthStart = time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
+	}
+
+	result, err := h.statementUC.GetStatement(ctx, chatID, monthStart)
+	if err != nil {
+		sendMessage(chatID, "❌ "+err.Error())
+		return
+	}
+
+	if len(result.Entries) == 0 {
+		sendMessage(chatID, fmt.Sprintf("📋 *Extrato — %s*\n\nNenhuma movimentação encontrada.", result.Month.Format("01/2006")))
+		return
+	}
+
+	msg := fmt.Sprintf("📋 *Extrato — %s*\n\n", result.Month.Format("01/2006"))
+	for _, e := range result.Entries {
+		switch e.Kind {
+		case "expense":
+			line := fmt.Sprintf("💸 %s — %s — R$ %.2f", e.Date.Format("02/01"), e.Label, e.Amount)
+			if e.Description != "" {
+				line += " — " + e.Description
+			}
+			msg += line + "\n"
+		case "revenue":
+			line := fmt.Sprintf("💰 %s — R$ %.2f", e.Date.Format("02/01"), e.Amount)
+			if e.Description != "" {
+				line += " — " + e.Description
+			}
+			msg += line + "\n"
+		case "investment":
+			line := fmt.Sprintf("📈 %s — %s — R$ %.2f", e.Date.Format("02/01"), e.Label, e.Amount)
+			if e.Description != "" {
+				line += " — " + e.Description
+			}
+			msg += line + "\n"
+		}
+	}
+
 	sendMessage(chatID, msg)
 }
 
