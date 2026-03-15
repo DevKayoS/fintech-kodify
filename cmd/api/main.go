@@ -6,6 +6,7 @@ import (
 
 	"github.com/DevKayoS/fintech-kodify/internal/adapters/rest"
 	"github.com/DevKayoS/fintech-kodify/internal/infrastructure/pgstore/database"
+	"github.com/DevKayoS/fintech-kodify/internal/middleware"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	ginadapter "github.com/awslabs/aws-lambda-go-api-proxy/gin"
@@ -21,6 +22,8 @@ func init() {
 	}
 
 	slog.Info("database connected")
+
+	middleware.InitRedis()
 }
 
 func main() {
