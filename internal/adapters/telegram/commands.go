@@ -12,7 +12,8 @@ _Ex: /gasto 39.90 alimentacao Almoço no restaurante_
 _Ex: /investimento 500 cdb Tesouro Selic_
 
 📊 *Consultas*
-/resumo — resumo financeiro do mês atual
+/resumo — totais do mês (gastos, receitas e saldo)
+/resumo\_mensal — detalhado por categoria
 /extrato — histórico de transações
 /categorias — lista de categorias de despesa
 /tipos\_investimento — lista de tipos de investimento

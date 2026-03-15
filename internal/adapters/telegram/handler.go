@@ -12,18 +12,21 @@ import (
 
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/expense"
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/revenue"
+	"github.com/DevKayoS/fintech-kodify/internal/usecases/summary"
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/user"
+	"github.com/DevKayoS/fintech-kodify/internal/utils"
 	"github.com/aws/aws-lambda-go/events"
 )
 
 type Handler struct {
 	expenseUC *expense.ExpenseUseCase
 	revenueUC *revenue.RevenueUseCase
+	summaryUC *summary.SummaryUseCase
 	userUC    *user.UserUseCase
 }
 
-func NewHandler(expenseUC *expense.ExpenseUseCase, revenueUC *revenue.RevenueUseCase, userUC *user.UserUseCase) *Handler {
-	return &Handler{expenseUC: expenseUC, revenueUC: revenueUC, userUC: userUC}
+func NewHandler(expenseUC *expense.ExpenseUseCase, revenueUC *revenue.RevenueUseCase, summaryUC *summary.SummaryUseCase, userUC *user.UserUseCase) *Handler {
+	return &Handler{expenseUC: expenseUC, revenueUC: revenueUC, summaryUC: summaryUC, userUC: userUC}
 }
 
 func (h *Handler) HandleUpdate(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -91,7 +94,9 @@ func (h *Handler) handleCommand(ctx context.Context, chatID int64, command strin
 	case "/categorias":
 		h.handleCategorias(ctx, chatID)
 	case "/resumo":
-		// TODO: resumo mensal
+		h.handleResumo(ctx, chatID)
+	case "/resumo-mensal":
+		h.handleResumoMensal(ctx, chatID)
 	case "/extrato":
 		// TODO: extrato de transações
 	case "/tipos_investimento":
@@ -165,6 +170,67 @@ func (h *Handler) handleReceber(ctx context.Context, chatID int64, args []string
 	if result.Description != "" {
 		msg += "\n📝 " + result.Description
 	}
+	sendMessage(chatID, msg)
+}
+
+func (h *Handler) handleResumo(ctx context.Context, chatID int64) {
+	s, err := h.summaryUC.GetMonthlySummary(ctx, chatID)
+	if err != nil {
+		sendMessage(chatID, "❌ "+err.Error())
+		return
+	}
+
+	balanceEmoji := "📈"
+	if s.Balance < 0 {
+		balanceEmoji = "📉"
+	}
+
+	msg := fmt.Sprintf(
+		"📊 *Resumo de %s*\n\n"+
+			"💸 Gastos: R$ %.2f\n"+
+			"💰 Receitas: R$ %.2f\n"+
+			"%s Saldo: R$ %.2f",
+		s.Month.Format("Janeiro/2006"),
+		utils.ToReais(s.TotalExpenses),
+		utils.ToReais(s.TotalRevenues),
+		balanceEmoji,
+		utils.ToReais(s.Balance),
+	)
+	sendMessage(chatID, msg)
+}
+
+func (h *Handler) handleResumoMensal(ctx context.Context, chatID int64) {
+	s, err := h.summaryUC.GetMonthlySummary(ctx, chatID)
+	if err != nil {
+		sendMessage(chatID, "❌ "+err.Error())
+		return
+	}
+
+	balanceEmoji := "📈"
+	if s.Balance < 0 {
+		balanceEmoji = "📉"
+	}
+
+	msg := fmt.Sprintf("📊 *Resumo Mensal — %s*\n", s.Month.Format("Janeiro/2006"))
+
+	if len(s.ExpensesByCategory) > 0 {
+		msg += "\n💸 *Gastos por categoria:*\n"
+		for _, c := range s.ExpensesByCategory {
+			msg += fmt.Sprintf("  • %s: R$ %.2f\n", c.Name, utils.ToReais(c.Total))
+		}
+		msg += fmt.Sprintf("  _Total: R$ %.2f_\n", utils.ToReais(s.TotalExpenses))
+	} else {
+		msg += "\n💸 Nenhum gasto registrado este mês.\n"
+	}
+
+	msg += fmt.Sprintf(
+		"\n💰 *Receitas:* R$ %.2f\n"+
+			"\n%s *Saldo do mês:* R$ %.2f",
+		utils.ToReais(s.TotalRevenues),
+		balanceEmoji,
+		utils.ToReais(s.Balance),
+	)
+
 	sendMessage(chatID, msg)
 }
 
