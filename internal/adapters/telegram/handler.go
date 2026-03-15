@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/expense"
+	"github.com/DevKayoS/fintech-kodify/internal/usecases/investment"
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/revenue"
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/summary"
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/user"
@@ -20,14 +21,15 @@ import (
 )
 
 type Handler struct {
-	expenseUC *expense.ExpenseUseCase
-	revenueUC *revenue.RevenueUseCase
-	summaryUC *summary.SummaryUseCase
-	userUC    *user.UserUseCase
+	expenseUC    *expense.ExpenseUseCase
+	investmentUC *investment.InvestmentUseCase
+	revenueUC    *revenue.RevenueUseCase
+	summaryUC    *summary.SummaryUseCase
+	userUC       *user.UserUseCase
 }
 
-func NewHandler(expenseUC *expense.ExpenseUseCase, revenueUC *revenue.RevenueUseCase, summaryUC *summary.SummaryUseCase, userUC *user.UserUseCase) *Handler {
-	return &Handler{expenseUC: expenseUC, revenueUC: revenueUC, summaryUC: summaryUC, userUC: userUC}
+func NewHandler(expenseUC *expense.ExpenseUseCase, investmentUC *investment.InvestmentUseCase, revenueUC *revenue.RevenueUseCase, summaryUC *summary.SummaryUseCase, userUC *user.UserUseCase) *Handler {
+	return &Handler{expenseUC: expenseUC, investmentUC: investmentUC, revenueUC: revenueUC, summaryUC: summaryUC, userUC: userUC}
 }
 
 func (h *Handler) HandleUpdate(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -100,10 +102,10 @@ func (h *Handler) handleCommand(ctx context.Context, chatID int64, command strin
 		h.handleResumoMensal(ctx, chatID, args)
 	case "/extrato":
 		// TODO: extrato de transações
-	case "/tipos_investimento":
-		// TODO: listar tipos de investimento
 	case "/investimento":
-		// TODO: registrar investimento
+		h.handleInvestimento(ctx, chatID, args)
+	case "/tipos_investimento":
+		h.handleTiposInvestimento(ctx, chatID)
 	case "/ajuda":
 		sendMessage(chatID, helpMessage())
 	default:
@@ -248,6 +250,52 @@ func (h *Handler) handleResumoMensal(ctx context.Context, chatID int64, args []s
 
 	msg += fmt.Sprintf("\n%s *Saldo do mês:* R$ %.2f", balanceEmoji, utils.ToReais(s.Balance))
 
+	sendMessage(chatID, msg)
+}
+
+func (h *Handler) handleInvestimento(ctx context.Context, chatID int64, args []string) {
+	if len(args) < 2 {
+		sendMessage(chatID, "Uso: `/investimento <valor> <tipo> <descrição>`\nEx: `/investimento 500 cdb Tesouro Selic`\n\nUse /tipos_investimento para ver os tipos disponíveis.")
+		return
+	}
+
+	amountStr := strings.ReplaceAll(args[0], ",", ".")
+	amount, err := strconv.ParseFloat(amountStr, 64)
+	if err != nil || amount <= 0 {
+		sendMessage(chatID, "❌ Valor inválido. Use ponto ou vírgula como separador decimal.\nEx: `/investimento 500 cdb Tesouro Selic`")
+		return
+	}
+
+	typeSlug := args[1]
+	description := ""
+	if len(args) > 2 {
+		description = strings.Join(args[2:], " ")
+	}
+
+	result, err := h.investmentUC.CreateFromTelegram(ctx, chatID, amount, typeSlug, description)
+	if err != nil {
+		sendMessage(chatID, "❌ "+err.Error())
+		return
+	}
+
+	msg := fmt.Sprintf("✅ *Investimento registrado!*\n\n📈 R$ %.2f\n🏷️ %s", result.Amount, result.TypeName)
+	if result.Description != "" {
+		msg += "\n📝 " + result.Description
+	}
+	sendMessage(chatID, msg)
+}
+
+func (h *Handler) handleTiposInvestimento(ctx context.Context, chatID int64) {
+	types, err := h.investmentUC.ListTypes(ctx)
+	if err != nil {
+		sendMessage(chatID, "❌ Erro ao buscar tipos de investimento.")
+		return
+	}
+
+	msg := "*Tipos de investimento disponíveis:*\n"
+	for _, t := range types {
+		msg += fmt.Sprintf("• `%s` — %s\n", t.Slug, t.Name)
+	}
 	sendMessage(chatID, msg)
 }
 

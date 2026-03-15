@@ -7,6 +7,7 @@ import (
 	"github.com/DevKayoS/fintech-kodify/internal/adapters/telegram"
 	"github.com/DevKayoS/fintech-kodify/internal/infrastructure/pgstore/database"
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/expense"
+	"github.com/DevKayoS/fintech-kodify/internal/usecases/investment"
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/revenue"
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/summary"
 	"github.com/DevKayoS/fintech-kodify/internal/usecases/user"
@@ -24,10 +25,11 @@ func init() {
 	}
 
 	expenseUC := expense.NewExpenseUseCase(database.Pool)
+	investmentUC := investment.NewInvestmentUseCase(database.Pool)
 	revenueUC := revenue.NewRevenueUseCase(database.Pool)
 	summaryUC := summary.NewSummaryUseCase(database.Pool)
 	userUC := user.NewUserUseCase(database.Pool)
-	telegramHandler = telegram.NewHandler(expenseUC, revenueUC, summaryUC, userUC)
+	telegramHandler = telegram.NewHandler(expenseUC, investmentUC, revenueUC, summaryUC, userUC)
 
 	slog.Info("database connected")
 }
