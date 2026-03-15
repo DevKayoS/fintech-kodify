@@ -3,15 +3,26 @@ package telegram
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
+	"github.com/DevKayoS/fintech-kodify/internal/usecases/expense"
 	"github.com/aws/aws-lambda-go/events"
 )
 
-func HandleUpdate(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+type Handler struct {
+	expenseUC *expense.ExpenseUseCase
+}
+
+func NewHandler(expenseUC *expense.ExpenseUseCase) *Handler {
+	return &Handler{expenseUC: expenseUC}
+}
+
+func (h *Handler) HandleUpdate(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	if !validateWebhookSecret(req) {
 		slog.Warn("telegram webhook: invalid secret header")
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusUnauthorized}, nil
@@ -40,18 +51,15 @@ func HandleUpdate(ctx context.Context, req events.APIGatewayProxyRequest) (event
 		// token := args[0]
 		// userService.LinkTelegramChatID(ctx, token, chatID)
 	case "/gasto":
-		// TODO: registrar gasto via expense use case
-		// expenseUseCase.CreateFromTelegram(ctx, chatID, args)
+		h.handleGasto(ctx, chatID, args)
 	case "/investimento":
 		// TODO: registrar investimento via investment use case
-		// investmentUseCase.CreateFromTelegram(ctx, chatID, args)
 	case "/resumo":
 		// TODO: buscar resumo mensal e enviar mensagem
-		// summaryUseCase.GetSummary(ctx, chatID, args)
 	case "/extrato":
 		// TODO: buscar extrato e enviar mensagem
 	case "/categorias":
-		// TODO: listar categorias de gasto
+		h.handleCategorias(ctx, chatID)
 	case "/tipos_investimento":
 		// TODO: listar tipos de investimento
 	case "/ajuda":
@@ -61,6 +69,52 @@ func HandleUpdate(ctx context.Context, req events.APIGatewayProxyRequest) (event
 	}
 
 	return okResponse(), nil
+}
+
+func (h *Handler) handleGasto(ctx context.Context, chatID int64, args []string) {
+	if len(args) < 2 {
+		sendMessage(chatID, "Uso: `/gasto <valor> <categoria> <descrição>`\nEx: `/gasto 39.90 alimentacao Almoço`")
+		return
+	}
+
+	amountStr := strings.ReplaceAll(args[0], ",", ".")
+	amount, err := strconv.ParseFloat(amountStr, 64)
+	if err != nil || amount <= 0 {
+		sendMessage(chatID, "❌ Valor inválido. Use ponto ou vírgula como separador decimal.\nEx: `/gasto 39.90 alimentacao Almoço`")
+		return
+	}
+
+	categorySlug := args[1]
+	description := ""
+	if len(args) > 2 {
+		description = strings.Join(args[2:], " ")
+	}
+
+	result, err := h.expenseUC.CreateFromTelegram(ctx, chatID, amount, categorySlug, description)
+	if err != nil {
+		sendMessage(chatID, "❌ "+err.Error())
+		return
+	}
+
+	msg := fmt.Sprintf("✅ *Gasto registrado!*\n\n💸 R$ %.2f\n🏷️ %s", result.Amount, result.CategoryName)
+	if result.Description != "" {
+		msg += "\n📝 " + result.Description
+	}
+	sendMessage(chatID, msg)
+}
+
+func (h *Handler) handleCategorias(ctx context.Context, chatID int64) {
+	categories, err := h.expenseUC.ListCategories(ctx)
+	if err != nil {
+		sendMessage(chatID, "❌ Erro ao buscar categorias.")
+		return
+	}
+
+	msg := "*Categorias disponíveis:*\n"
+	for _, c := range categories {
+		msg += fmt.Sprintf("• `%s` — %s\n", c.Slug, c.Name)
+	}
+	sendMessage(chatID, msg)
 }
 
 // parseCommand separa o comando dos argumentos de uma mensagem Telegram.

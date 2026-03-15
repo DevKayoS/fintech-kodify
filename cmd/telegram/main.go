@@ -6,9 +6,12 @@ import (
 
 	"github.com/DevKayoS/fintech-kodify/internal/adapters/telegram"
 	"github.com/DevKayoS/fintech-kodify/internal/infrastructure/pgstore/database"
+	"github.com/DevKayoS/fintech-kodify/internal/usecases/expense"
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-lambda-go/lambda"
+	awslambda "github.com/aws/aws-lambda-go/lambda"
 )
+
+var telegramHandler *telegram.Handler
 
 func init() {
 	ctx := context.Background()
@@ -17,13 +20,16 @@ func init() {
 		slog.Error("failed to connect to database", "error", err)
 	}
 
+	expenseUC := expense.NewExpenseUseCase(database.Pool)
+	telegramHandler = telegram.NewHandler(expenseUC)
+
 	slog.Info("database connected")
 }
 
 func main() {
-	lambda.Start(Handler)
+	awslambda.Start(Handler)
 }
 
 func Handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	return telegram.HandleUpdate(ctx, req)
+	return telegramHandler.HandleUpdate(ctx, req)
 }
