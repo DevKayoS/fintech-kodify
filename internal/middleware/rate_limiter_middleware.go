@@ -17,6 +17,16 @@ import (
 var redisClient *redis.Client
 
 func InitRedis() {
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL != "" {
+		opt, err := redis.ParseURL(redisURL)
+		if err == nil {
+			redisClient = redis.NewClient(opt)
+			return
+		}
+	}
+
+	// fallback: variáveis individuais
 	redisClient = redis.NewClient(&redis.Options{
 		Addr:      os.Getenv("UPSTASH_REDIS_ADDR"),
 		Password:  os.Getenv("UPSTASH_REDIS_PASSWORD"),
