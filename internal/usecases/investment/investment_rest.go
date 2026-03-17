@@ -11,13 +11,14 @@ import (
 )
 
 type InvestmentItem struct {
-	ID          int64
-	Amount      float64
-	TypeSlug    string
-	TypeName    string
-	Description string
-	InvestedAt  time.Time
-	CreatedAt   time.Time
+	ID           int64
+	Amount       float64
+	TypeSlug     string
+	TypeName     string
+	Description  string
+	MovementType string
+	InvestedAt   time.Time
+	CreatedAt    time.Time
 }
 
 func (uc *InvestmentUseCase) Create(ctx context.Context, userID int64, amountReais float64, typeSlug, description string, investedAt time.Time) (*CreateInvestmentResult, error) {
@@ -36,17 +37,51 @@ func (uc *InvestmentUseCase) Create(ctx context.Context, userID int64, amountRea
 		Amount:           utils.ToCentavos(amountReais),
 		Description:      pgtype.Text{String: description, Valid: description != ""},
 		InvestedAt:       pgtype.Timestamptz{Time: investedAt, Valid: true},
+		MovementType:     "deposit",
 	})
 	if err != nil {
 		return nil, errors.Internal("erro ao registrar investimento", err)
 	}
 
 	return &CreateInvestmentResult{
-		ID:          inv.ID,
-		Amount:      amountReais,
-		TypeName:    invType.Name,
-		Description: description,
-		InvestedAt:  investedAt,
+		ID:           inv.ID,
+		Amount:       amountReais,
+		TypeName:     invType.Name,
+		Description:  description,
+		MovementType: "deposit",
+		InvestedAt:   investedAt,
+	}, nil
+}
+
+func (uc *InvestmentUseCase) Withdraw(ctx context.Context, userID int64, amountReais float64, typeSlug, description string, investedAt time.Time) (*CreateInvestmentResult, error) {
+	invType, err := uc.repository.GetInvestmentTypeBySlug(ctx, typeSlug)
+	if err != nil {
+		return nil, errors.NotFound("tipo de investimento '" + typeSlug + "' não encontrado")
+	}
+
+	if investedAt.IsZero() {
+		investedAt = time.Now().UTC()
+	}
+
+	inv, err := uc.repository.InsertInvestment(ctx, pgstore.InsertInvestmentParams{
+		UserID:           userID,
+		InvestmentTypeID: invType.ID,
+		Amount:           utils.ToCentavos(amountReais),
+		Description:      pgtype.Text{String: description, Valid: description != ""},
+		InvestedAt:       pgtype.Timestamptz{Time: investedAt, Valid: true},
+		MovementType:     "withdrawal",
+	})
+	if err != nil {
+		return nil, errors.Internal("erro ao registrar resgate", err)
+	}
+
+	return &CreateInvestmentResult{
+		ID:           inv.ID,
+		Amount:       amountReais,
+		TypeName:     invType.Name,
+		Description:  description,
+		MovementType: "withdrawal",
+		InvestedAt:   investedAt,
 	}, nil
 }
 
@@ -57,13 +92,14 @@ func (uc *InvestmentUseCase) GetByID(ctx context.Context, userID, id int64) (*In
 	}
 
 	return &InvestmentItem{
-		ID:          row.ID,
-		Amount:      utils.ToReais(row.Amount),
-		TypeSlug:    row.TypeSlug,
-		TypeName:    row.TypeName,
-		Description: row.Description.String,
-		InvestedAt:  row.InvestedAt.Time,
-		CreatedAt:   row.CreatedAt.Time,
+		ID:           row.ID,
+		Amount:       utils.ToReais(row.Amount),
+		TypeSlug:     row.TypeSlug,
+		TypeName:     row.TypeName,
+		Description:  row.Description.String,
+		MovementType: row.MovementType,
+		InvestedAt:   row.InvestedAt.Time,
+		CreatedAt:    row.CreatedAt.Time,
 	}, nil
 }
 
@@ -96,13 +132,14 @@ func (uc *InvestmentUseCase) List(ctx context.Context, userID int64, month, type
 
 		for _, r := range rows {
 			items = append(items, InvestmentItem{
-				ID:          r.ID,
-				Amount:      utils.ToReais(r.Amount),
-				TypeSlug:    r.TypeSlug,
-				TypeName:    r.TypeName,
-				Description: r.Description.String,
-				InvestedAt:  r.InvestedAt.Time,
-				CreatedAt:   r.CreatedAt.Time,
+				ID:           r.ID,
+				Amount:       utils.ToReais(r.Amount),
+				TypeSlug:     r.TypeSlug,
+				TypeName:     r.TypeName,
+				Description:  r.Description.String,
+				MovementType: r.MovementType,
+				InvestedAt:   r.InvestedAt.Time,
+				CreatedAt:    r.CreatedAt.Time,
 			})
 		}
 	} else {
@@ -113,13 +150,14 @@ func (uc *InvestmentUseCase) List(ctx context.Context, userID int64, month, type
 
 		for _, r := range rows {
 			items = append(items, InvestmentItem{
-				ID:          r.ID,
-				Amount:      utils.ToReais(r.Amount),
-				TypeSlug:    r.TypeSlug,
-				TypeName:    r.TypeName,
-				Description: r.Description.String,
-				InvestedAt:  r.InvestedAt.Time,
-				CreatedAt:   r.CreatedAt.Time,
+				ID:           r.ID,
+				Amount:       utils.ToReais(r.Amount),
+				TypeSlug:     r.TypeSlug,
+				TypeName:     r.TypeName,
+				Description:  r.Description.String,
+				MovementType: r.MovementType,
+				InvestedAt:   r.InvestedAt.Time,
+				CreatedAt:    r.CreatedAt.Time,
 			})
 		}
 	}

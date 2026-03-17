@@ -9,6 +9,7 @@ func SetupInvestmentRoutes(rg *gin.RouterGroup, ic *controllers.InvestmentContro
 	investments := rg.Group("/investments")
 	{
 		investments.POST("", ic.Create)
+		investments.POST("/withdraw", ic.Withdraw)
 		investments.GET("", ic.List)
 		investments.GET("/types", ic.ListTypes)
 		investments.GET("/:id", ic.GetByID)

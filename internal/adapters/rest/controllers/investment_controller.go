@@ -19,7 +19,7 @@ func NewInvestmentController(uc *investment.InvestmentUseCase) *InvestmentContro
 	return &InvestmentController{useCase: uc}
 }
 
-// Create registra um novo investimento.
+// Create registra um novo investimento (aporte).
 // POST /api/v1/investments
 func (c *InvestmentController) Create(ctx *gin.Context) {
 	userID := ctx.GetInt64("user_id")
@@ -43,12 +43,47 @@ func (c *InvestmentController) Create(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusCreated, models.InvestmentResponse{
-		ID:          result.ID,
-		TypeName:    result.TypeName,
-		Amount:      result.Amount,
-		Description: result.Description,
-		InvestedAt:  result.InvestedAt.Format("2006-01-02"),
-		CreatedAt:   result.InvestedAt.Format("2006-01-02T15:04:05Z"),
+		ID:           result.ID,
+		TypeName:     result.TypeName,
+		Amount:       result.Amount,
+		Description:  result.Description,
+		MovementType: result.MovementType,
+		InvestedAt:   result.InvestedAt.Format("2006-01-02"),
+		CreatedAt:    result.InvestedAt.Format("2006-01-02T15:04:05Z"),
+	})
+}
+
+// Withdraw registra um resgate de investimento.
+// POST /api/v1/investments/withdraw
+func (c *InvestmentController) Withdraw(ctx *gin.Context) {
+	userID := ctx.GetInt64("user_id")
+
+	var req models.WithdrawInvestmentRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.Error(errors.BadRequest(err.Error()))
+		return
+	}
+
+	investedAt, err := utils.ParseDateTime(req.InvestedAt)
+	if err != nil {
+		ctx.Error(errors.BadRequest(err.Error()))
+		return
+	}
+
+	result, err := c.useCase.Withdraw(ctx.Request.Context(), userID, req.Amount, req.TypeSlug, req.Description, investedAt)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, models.InvestmentResponse{
+		ID:           result.ID,
+		TypeName:     result.TypeName,
+		Amount:       result.Amount,
+		Description:  result.Description,
+		MovementType: result.MovementType,
+		InvestedAt:   result.InvestedAt.Format("2006-01-02"),
+		CreatedAt:    result.InvestedAt.Format("2006-01-02T15:04:05Z"),
 	})
 }
 
@@ -72,13 +107,14 @@ func (c *InvestmentController) List(ctx *gin.Context) {
 	resp := make([]models.InvestmentResponse, 0, len(items))
 	for _, item := range items {
 		resp = append(resp, models.InvestmentResponse{
-			ID:          item.ID,
-			TypeSlug:    item.TypeSlug,
-			TypeName:    item.TypeName,
-			Amount:      item.Amount,
-			Description: item.Description,
-			InvestedAt:  item.InvestedAt.Format("2006-01-02"),
-			CreatedAt:   item.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			ID:           item.ID,
+			TypeSlug:     item.TypeSlug,
+			TypeName:     item.TypeName,
+			Amount:       item.Amount,
+			Description:  item.Description,
+			MovementType: item.MovementType,
+			InvestedAt:   item.InvestedAt.Format("2006-01-02"),
+			CreatedAt:    item.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		})
 	}
 
@@ -103,13 +139,14 @@ func (c *InvestmentController) GetByID(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, models.InvestmentResponse{
-		ID:          item.ID,
-		TypeSlug:    item.TypeSlug,
-		TypeName:    item.TypeName,
-		Amount:      item.Amount,
-		Description: item.Description,
-		InvestedAt:  item.InvestedAt.Format("2006-01-02"),
-		CreatedAt:   item.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		ID:           item.ID,
+		TypeSlug:     item.TypeSlug,
+		TypeName:     item.TypeName,
+		Amount:       item.Amount,
+		Description:  item.Description,
+		MovementType: item.MovementType,
+		InvestedAt:   item.InvestedAt.Format("2006-01-02"),
+		CreatedAt:    item.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	})
 }
 

@@ -34,6 +34,7 @@ type Investment struct {
 	Description      pgtype.Text        `json:"description"`
 	InvestedAt       pgtype.Timestamptz `json:"invested_at"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	MovementType     string             `json:"movement_type"`
 }
 
 type InvestmentType struct {

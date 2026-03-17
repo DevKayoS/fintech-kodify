@@ -33,6 +33,7 @@ SELECT
     i.description,
     i.invested_at,
     i.created_at,
+    i.movement_type,
     it.slug AS type_slug,
     it.name AS type_name
 FROM investments i
@@ -46,14 +47,15 @@ type GetInvestmentByIDParams struct {
 }
 
 type GetInvestmentByIDRow struct {
-	ID          int64              `json:"id"`
-	UserID      int64              `json:"user_id"`
-	Amount      int64              `json:"amount"`
-	Description pgtype.Text        `json:"description"`
-	InvestedAt  pgtype.Timestamptz `json:"invested_at"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	TypeSlug    string             `json:"type_slug"`
-	TypeName    string             `json:"type_name"`
+	ID           int64              `json:"id"`
+	UserID       int64              `json:"user_id"`
+	Amount       int64              `json:"amount"`
+	Description  pgtype.Text        `json:"description"`
+	InvestedAt   pgtype.Timestamptz `json:"invested_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	MovementType string             `json:"movement_type"`
+	TypeSlug     string             `json:"type_slug"`
+	TypeName     string             `json:"type_name"`
 }
 
 func (q *Queries) GetInvestmentByID(ctx context.Context, arg GetInvestmentByIDParams) (GetInvestmentByIDRow, error) {
@@ -66,6 +68,7 @@ func (q *Queries) GetInvestmentByID(ctx context.Context, arg GetInvestmentByIDPa
 		&i.Description,
 		&i.InvestedAt,
 		&i.CreatedAt,
+		&i.MovementType,
 		&i.TypeSlug,
 		&i.TypeName,
 	)
@@ -76,7 +79,7 @@ const getInvestmentSummaryByPeriod = `-- name: GetInvestmentSummaryByPeriod :man
 SELECT
     it.slug AS type_slug,
     it.name AS type_name,
-    SUM(i.amount) AS total
+    SUM(CASE WHEN i.movement_type = 'withdrawal' THEN -i.amount ELSE i.amount END) AS total
 FROM investments i
 JOIN investment_types it ON i.investment_type_id = it.id
 WHERE i.user_id = $1
@@ -136,7 +139,9 @@ func (q *Queries) GetInvestmentTypeBySlug(ctx context.Context, slug string) (Inv
 }
 
 const getTotalInvestmentsByUser = `-- name: GetTotalInvestmentsByUser :one
-SELECT COALESCE(SUM(amount), 0)::BIGINT AS total
+SELECT COALESCE(SUM(
+    CASE WHEN movement_type = 'withdrawal' THEN -amount ELSE amount END
+), 0)::BIGINT AS total
 FROM investments
 WHERE user_id = $1
 `
@@ -149,9 +154,9 @@ func (q *Queries) GetTotalInvestmentsByUser(ctx context.Context, userID int64) (
 }
 
 const insertInvestment = `-- name: InsertInvestment :one
-INSERT INTO investments (user_id, investment_type_id, amount, description, invested_at)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, user_id, investment_type_id, amount, description, invested_at, created_at
+INSERT INTO investments (user_id, investment_type_id, amount, description, invested_at, movement_type)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, user_id, investment_type_id, amount, description, invested_at, created_at, movement_type
 `
 
 type InsertInvestmentParams struct {
@@ -160,6 +165,7 @@ type InsertInvestmentParams struct {
 	Amount           int64              `json:"amount"`
 	Description      pgtype.Text        `json:"description"`
 	InvestedAt       pgtype.Timestamptz `json:"invested_at"`
+	MovementType     string             `json:"movement_type"`
 }
 
 func (q *Queries) InsertInvestment(ctx context.Context, arg InsertInvestmentParams) (Investment, error) {
@@ -169,6 +175,7 @@ func (q *Queries) InsertInvestment(ctx context.Context, arg InsertInvestmentPara
 		arg.Amount,
 		arg.Description,
 		arg.InvestedAt,
+		arg.MovementType,
 	)
 	var i Investment
 	err := row.Scan(
@@ -179,6 +186,7 @@ func (q *Queries) InsertInvestment(ctx context.Context, arg InsertInvestmentPara
 		&i.Description,
 		&i.InvestedAt,
 		&i.CreatedAt,
+		&i.MovementType,
 	)
 	return i, err
 }
@@ -221,6 +229,7 @@ SELECT
     i.description,
     i.invested_at,
     i.created_at,
+    i.movement_type,
     it.slug AS type_slug,
     it.name AS type_name
 FROM investments i
@@ -230,14 +239,15 @@ ORDER BY i.invested_at DESC
 `
 
 type ListInvestmentsByUserRow struct {
-	ID          int64              `json:"id"`
-	UserID      int64              `json:"user_id"`
-	Amount      int64              `json:"amount"`
-	Description pgtype.Text        `json:"description"`
-	InvestedAt  pgtype.Timestamptz `json:"invested_at"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	TypeSlug    string             `json:"type_slug"`
-	TypeName    string             `json:"type_name"`
+	ID           int64              `json:"id"`
+	UserID       int64              `json:"user_id"`
+	Amount       int64              `json:"amount"`
+	Description  pgtype.Text        `json:"description"`
+	InvestedAt   pgtype.Timestamptz `json:"invested_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	MovementType string             `json:"movement_type"`
+	TypeSlug     string             `json:"type_slug"`
+	TypeName     string             `json:"type_name"`
 }
 
 func (q *Queries) ListInvestmentsByUser(ctx context.Context, userID int64) ([]ListInvestmentsByUserRow, error) {
@@ -256,6 +266,7 @@ func (q *Queries) ListInvestmentsByUser(ctx context.Context, userID int64) ([]Li
 			&i.Description,
 			&i.InvestedAt,
 			&i.CreatedAt,
+			&i.MovementType,
 			&i.TypeSlug,
 			&i.TypeName,
 		); err != nil {
@@ -277,6 +288,7 @@ SELECT
     i.description,
     i.invested_at,
     i.created_at,
+    i.movement_type,
     it.slug AS type_slug,
     it.name AS type_name
 FROM investments i
@@ -294,14 +306,15 @@ type ListInvestmentsByUserAndPeriodParams struct {
 }
 
 type ListInvestmentsByUserAndPeriodRow struct {
-	ID          int64              `json:"id"`
-	UserID      int64              `json:"user_id"`
-	Amount      int64              `json:"amount"`
-	Description pgtype.Text        `json:"description"`
-	InvestedAt  pgtype.Timestamptz `json:"invested_at"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	TypeSlug    string             `json:"type_slug"`
-	TypeName    string             `json:"type_name"`
+	ID           int64              `json:"id"`
+	UserID       int64              `json:"user_id"`
+	Amount       int64              `json:"amount"`
+	Description  pgtype.Text        `json:"description"`
+	InvestedAt   pgtype.Timestamptz `json:"invested_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	MovementType string             `json:"movement_type"`
+	TypeSlug     string             `json:"type_slug"`
+	TypeName     string             `json:"type_name"`
 }
 
 func (q *Queries) ListInvestmentsByUserAndPeriod(ctx context.Context, arg ListInvestmentsByUserAndPeriodParams) ([]ListInvestmentsByUserAndPeriodRow, error) {
@@ -320,6 +333,7 @@ func (q *Queries) ListInvestmentsByUserAndPeriod(ctx context.Context, arg ListIn
 			&i.Description,
 			&i.InvestedAt,
 			&i.CreatedAt,
+			&i.MovementType,
 			&i.TypeSlug,
 			&i.TypeName,
 		); err != nil {

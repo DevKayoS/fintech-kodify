@@ -31,11 +31,12 @@ func NewInvestmentUseCase(pool *pgxpool.Pool) *InvestmentUseCase {
 }
 
 type CreateInvestmentResult struct {
-	ID          int64
-	Amount      float64
-	TypeName    string
-	Description string
-	InvestedAt  time.Time
+	ID           int64
+	Amount       float64
+	TypeName     string
+	Description  string
+	MovementType string
+	InvestedAt   time.Time
 }
 
 func (uc *InvestmentUseCase) CreateFromTelegram(ctx context.Context, chatID int64, amountReais float64, typeSlug string, description string) (*CreateInvestmentResult, error) {
@@ -56,17 +57,19 @@ func (uc *InvestmentUseCase) CreateFromTelegram(ctx context.Context, chatID int6
 		Amount:           utils.ToCentavos(amountReais),
 		Description:      pgtype.Text{String: description, Valid: description != ""},
 		InvestedAt:       pgtype.Timestamptz{Time: now, Valid: true},
+		MovementType:     "deposit",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("erro ao registrar investimento, tente novamente")
 	}
 
 	return &CreateInvestmentResult{
-		ID:          inv.ID,
-		Amount:      amountReais,
-		TypeName:    invType.Name,
-		Description: description,
-		InvestedAt:  now,
+		ID:           inv.ID,
+		Amount:       amountReais,
+		TypeName:     invType.Name,
+		Description:  description,
+		MovementType: "deposit",
+		InvestedAt:   now,
 	}, nil
 }
 
