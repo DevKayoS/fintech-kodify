@@ -24,7 +24,7 @@ func SetupAPI() *gin.Engine {
 	r.Use(middleware.RateLimiter(60, time.Minute))
 
 	r.Use(cors.New(cors.Config{
-		AllowAllOrigins:  true,
+		AllowOrigins:     []string{"https://fin.kodify.com.br"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
