@@ -28,9 +28,11 @@ func InitRedis() {
 
 	// fallback: variáveis individuais
 	redisClient = redis.NewClient(&redis.Options{
-		Addr:      os.Getenv("UPSTASH_REDIS_ADDR"),
-		Password:  os.Getenv("UPSTASH_REDIS_PASSWORD"),
-		TLSConfig: &tls.Config{},
+		Addr:        os.Getenv("UPSTASH_REDIS_ADDR"),
+		Password:    os.Getenv("UPSTASH_REDIS_PASSWORD"),
+		TLSConfig:   &tls.Config{},
+		DialTimeout: 500 * time.Millisecond,
+		MaxRetries:  0,
 	})
 }
 

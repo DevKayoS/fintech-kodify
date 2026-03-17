@@ -62,6 +62,7 @@ jobs:
           TF_VAR_aws_region: ${{ vars.AWS_REGION }}
           TF_VAR_telegram_bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TF_VAR_telegram_webhook_secret: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+          TF_VAR_redis_url: ${{ secrets.REDIS_URL }}
         run: terraform apply -auto-approve
 
       - name: Deploy Lambda code (API)

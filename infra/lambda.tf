@@ -17,10 +17,12 @@ resource "aws_lambda_function" "api" {
   handler          = "bootstrap"
   runtime          = "provided.al2023"
   role             = aws_iam_role.api.arn
+  timeout          = 15
 
   environment {
     variables = {
       DATABASE_URL = var.database_url
+      REDIS_URL    = var.redis_url
     }
   }
 

@@ -33,3 +33,9 @@ variable "telegram_webhook_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "redis_url" {
+  description = "URL de conexão do Redis (Upstash) para rate limiting — formato: rediss://:password@host:port"
+  type        = string
+  sensitive   = true
+}
